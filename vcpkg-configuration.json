@@ -1,0 +1,15 @@
+{
+  "default-registry": {
+    "kind": "git",
+    "baseline": "7476f0d4e77d3333fbb249657df8251c28c4faae",
+    "repository": "https://github.com/microsoft/vcpkg"
+  },
+  "registries": [
+    {
+      "kind": "git",
+      "repository": "https://github.com/XeroKimo/XK_vcpkg_repos",
+      "baseline": "46aa345ac2af6b6e6284b6f6372788b229753389",
+      "packages": [ "xerokimomath" ]
+    }
+  ]
+}

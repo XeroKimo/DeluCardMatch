@@ -1,0 +1,4 @@
+{
+  "dependencies": ["sdl2", "sdl2-image", "sdl2-ttf", "ms-gsl", "nlohmann-json", "box2d"]
+
+}
