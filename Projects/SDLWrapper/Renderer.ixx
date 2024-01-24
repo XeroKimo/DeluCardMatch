@@ -34,6 +34,64 @@ namespace SDL2pp
 		void operator()(Surface* surface) const { SDL_FreeSurface(surface); }
 	};
 
+	export struct TextureData
+	{
+		PixelFormat format;
+		TextureAccess access;
+		iVector2 size;
+	};
+
+	template<class DerivedSelf>
+	struct SDL2Interface<Texture, DerivedSelf>
+	{
+		using object_type = Texture;
+		using self_type = DerivedSelf;
+
+	public:
+		TextureAccess GetTextureAccess()
+		{
+			return QueryTexture().access;
+		}
+
+		BlendMode GetBlendMode()
+		{
+			BlendMode mode;
+			ThrowIfFailed(SDL_GetTextureBlendMode(&Get(), &mode));
+			return mode;
+		}
+
+		PixelFormat GetPixelFormat()
+		{
+			return QueryTexture().format;
+		}
+
+		iVector2 GetSize()
+		{
+			return QueryTexture().size;
+		}
+
+		void SetBlendMode(BlendMode mode)
+		{
+			ThrowIfFailed(SDL_SetTextureBlendMode(&Get(), mode));
+		}
+
+		TextureData QueryTexture()
+		{
+			TextureData data;
+			Uint32 format;
+			int access;
+			ThrowIfFailed(SDL_QueryTexture(&Get(), &format, &access, &data.size.X(), &data.size.Y()));
+			data.format = static_cast<PixelFormat>(format);
+			data.access = static_cast<TextureAccess>(access);
+			return data;
+		}
+
+
+	private:
+		const self_type& GetDerived() const noexcept { return static_cast<const self_type&>(*this); }
+		object_type& Get() const noexcept { return *GetDerived().get(); }
+	};
+
 	template<class DerivedSelf>
 	struct SDL2Interface<Renderer, DerivedSelf>
 	{

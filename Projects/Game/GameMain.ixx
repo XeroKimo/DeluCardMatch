@@ -8,13 +8,13 @@ module;
 export module DeluGame;
 
 import DeluEngine;
-import LevelStrip;
-import DeluGame.Player;
-import DeluGame.PlayerState;
-import DeluGame.PowerUpPoint;
-import Enemy;
-import LevelStrip.Event.EnemySpawn;
-import DeluGame.ControllerContextConstants;
+//import LevelStrip;
+//import DeluGame.Player;
+//import DeluGame.PlayerState;
+//import DeluGame.PowerUpPoint;
+//import Enemy;
+//import LevelStrip.Event.EnemySpawn;
+//import DeluGame.ControllerContextConstants;
 
 using namespace xk::Math::Aliases;
 export auto TestSceneMain()

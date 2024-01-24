@@ -104,17 +104,11 @@ namespace DeluEngine
 		SDL2pp::unique_ptr<SDL2pp::Renderer> backend;
 		SDL2pp::Color clearColor = SDL2pp::Color{ 96.f, 128, 255, 255 };
 		std::vector<std::function<void(DebugRenderer&)>> debugCallbacks;
-		TTF_Font* testFont;
-		SDL_Surface* testFontSurface;
-		SDL_Texture* testFontTexture;
 	public:
 		Renderer(SDL2pp::view_ptr<SDL2pp::Window> window, int deviceIndex = -1, SDL2pp::RendererFlag flags = SDL2pp::RendererFlag::Accelerated) :
 			backend(SDL2pp::CreateRenderer(window, deviceIndex, flags))
 		{
 			TTF_Init();
-			testFont = TTF_OpenFont("Arial.ttf", 12);
-			testFontSurface = TTF_RenderText_Shaded(testFont, "Test test, 1. 2. 3", { 255, 255, 255 }, { 0, 0, 0 });
-			testFontTexture = SDL_CreateTextureFromSurface(backend.get(), testFontSurface);
 		}
 
 		void Render()
@@ -125,8 +119,6 @@ namespace DeluEngine
 			DrawSprites();
 			DebugRenderer debugRenderer{ GetDebugRenderer() };
 			for (auto& callback : debugCallbacks) { callback(debugRenderer); }
-			SDL_Rect textLocation = { 400, 200, testFontSurface->w, testFontSurface->h };
-			backend->Copy(testFontTexture, std::nullopt, textLocation);
 		}
 
 		SpriteHandle CreateSprite(std::shared_ptr<SpriteData> spriteData)

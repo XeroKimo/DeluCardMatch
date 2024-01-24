@@ -118,6 +118,12 @@ namespace xk::Math
 	public:
 		constexpr Matrix() = default;	
 
+		template<std::convertible_to<Ty> Ty2>
+		constexpr Matrix(const Matrix<Ty2, M, N>& other)
+		{
+			std::copy(other._values.begin(), other._values.end(), _values.begin());
+		}
+
 		template<std::convertible_to<Ty>... Ty2>
 			requires (sizeof...(Ty2) <= M * N) //Some stupid reason consumers of the library can't see element_count when trying to instantiate this constructor
 		constexpr Matrix(Ty2... values) :

@@ -20,6 +20,7 @@ export namespace SDL2pp
 	using RendererFlip = SDL_RendererFlip;
 	using PixelFormat = SDL_PixelFormatEnum;
 	using TextureAccess = SDL_TextureAccess;
+	using BlendMode = SDL_BlendMode;
 
 	using KeyCode = SDL_KeyCode;
 

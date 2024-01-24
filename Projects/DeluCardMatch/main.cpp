@@ -10,6 +10,8 @@
 #include <cmath>
 #include <functional>
 #include <box2d/box2d.h>
+#include <SDL2/SDL_ttf.h>
+#include <SDL2/SDL_image.h>
 
 import DeluEngine;
 import xk.Math.Matrix;
@@ -41,6 +43,24 @@ struct UIFrame
 	SDL2pp::unique_ptr<SDL2pp::Texture> internalTexture;
 };
 
+struct UIElement
+{
+	Vector2 position;
+	Vector2 size;
+	Vector2 pivot;
+	SDL2pp::unique_ptr<SDL2pp::Texture> texture;
+
+	SDL2pp::FRect UIRect() const
+	{
+		SDL2pp::FRect rect;
+		rect.x = pivot.X() * -size.X() + position.X();
+		rect.y = (1 - pivot.Y()) * -size.Y() - position.Y();
+		rect.w = size.X();
+		rect.h = size.Y();
+		return rect;
+	}
+};
+
 int main()
 {
 	ApplicationTimer timer;
@@ -67,7 +87,21 @@ int main()
 		SDL_PIXELFORMAT_RGBA32, 
 		SDL2pp::TextureAccess(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET), 
 		frame.size.X(), frame.size.Y());
-	SDL_SetTextureBlendMode(frame.internalTexture.get(), SDL_BLENDMODE_BLEND);
+	frame.internalTexture->SetBlendMode(SDL_BLENDMODE_BLEND);
+
+	TTF_Font* testFont = TTF_OpenFont("Arial.ttf", 12);
+	//SDL_Surface* testFontSurface = TTF_RenderText_Solid(testFont, "Test test, 1. 2. 3", { 255, 255, 255 });
+	SDL_Surface* testFontSurface = TTF_RenderUTF8_Solid_Wrapped(testFont, "Test test, 1. 2. 3", { 255, 255, 255 }, 50);
+	//SDL_Surface* testFontSurface = TTF_RenderText_Shaded(testFont, "Test test, 1. 2. 3", { 255, 255, 255 }, { 0, 0, 0 });
+	SDL_Texture* testFontTexture = SDL_CreateTextureFromSurface(engine.renderer.backend.get(), testFontSurface);
+	SDL_Surface* testSurface = IMG_Load("Cards/syobontaya.png");
+
+	UIElement testElement;
+	testElement.texture = engine.renderer.backend->CreateTexture(testSurface);
+	testElement.size = testElement.texture->GetSize();
+	//testElement.pivot.Y() = 1;
+	//testElement.position.Y() = testElement.texture->GetSize().Y();
+	std::chrono::duration<float> accumulator{ 0 };
 	while (true)
 	{
 		SDL2pp::Event event;
@@ -85,9 +119,13 @@ int main()
 			engine.controllerContext.Execute(engine.controller);
 			timer.Tick([&](std::chrono::nanoseconds dt)
 			{
+				//testElement.position.Y() = testElement.size.Y() * std::sin(accumulator.count());
+				//testElement.pivot.Y() = (std::sin(accumulator.count()) + 1) / 2;
+				std::cout << testElement.pivot.Y() << "\n";
 				std::chrono::duration<float> deltaTime = std::chrono::duration_cast<std::chrono::duration<float>>(dt);
 				static constexpr std::chrono::duration<float> physicsStep{ 1.f / 60.f };
 				physicsAccumulator += deltaTime;
+				accumulator += deltaTime;
 				while (physicsAccumulator >= physicsStep)
 				{
 					engine.physicsWorld.Step(physicsStep.count(), 8, 3);
@@ -106,6 +144,12 @@ int main()
 				engine.renderer.backend->SetDrawColor(SDL2pp::Color{ 255, 255, 255, 0 });
 
 				engine.renderer.backend->Clear();
+				SDL_Rect textLocation = { 400, 200, testFontSurface->w, testFontSurface->h };
+				engine.renderer.backend->Copy(testFontTexture, std::nullopt, textLocation);
+				auto rect = testElement.UIRect();
+				rect.y += engine.renderer.backend->GetOutputSize().Y();
+				std::cout << rect.y << "\n";
+				engine.renderer.backend->CopyEx(testElement.texture.get(), std::nullopt, rect, 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
 
 				engine.renderer.backend->SetRenderTarget(nullptr);
 				engine.renderer.backend->Copy(frame.internalTexture.get(), std::nullopt, std::optional<SDL2pp::Rect>(std::nullopt));
