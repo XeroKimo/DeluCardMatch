@@ -46,21 +46,32 @@ struct UIFrame
 
 struct UIElement
 {
-	struct PinStaticSize
+	struct StaticSize
 	{
-		Vector2 pin;
-		Vector2 size;
+		Vector2 value;
 	};
 
-	struct PinRelativeSize
+	struct RelativeSize
 	{
-		Vector2 pin;
-		Vector2 size;
+		Vector2 value;
 	};
 
-	using PositionSizeVariant = std::variant<PinStaticSize, PinRelativeSize>;
+	struct AspectRatioRelativeSize
+	{
+		float ratio;
+		float value;
+	};
 
-	PositionSizeVariant positionSize;
+	struct Pin
+	{
+		Vector2 value;
+	};
+
+	using PositionVariant = Pin;
+	using SizeVariant = std::variant<StaticSize, RelativeSize, AspectRatioRelativeSize>;
+
+	PositionVariant position;
+	SizeVariant size;
 	Vector2 pivot;
 	SDL2pp::shared_ptr<SDL2pp::Texture> texture;
 
@@ -71,13 +82,19 @@ SDL2pp::FRect GetRect(const UIFrame& frame, const UIElement& element)
 	SDL2pp::FRect rect;
 	const Vector2 size = [&frame, &element]() -> Vector2
 	{
-		if(auto* pinStaticSize = std::get_if<UIElement::PinStaticSize>(&element.positionSize); pinStaticSize)
+		if(auto* size = std::get_if<UIElement::StaticSize>(&element.size); size)
 		{
-			return pinStaticSize->size;
+			return size->value;
 		}
-		else if(auto* pinRelativeSize = std::get_if<UIElement::PinRelativeSize>(&element.positionSize); pinRelativeSize)
+		else if(auto* size = std::get_if<UIElement::RelativeSize>(&element.size); size)
 		{
-			return { frame.size.X() * pinRelativeSize->size.X(), frame.size.Y() * pinRelativeSize->size.Y() };
+			return { frame.size.X() * size->value.X(), frame.size.Y() * size->value.Y() };
+		}
+		else if(auto* size = std::get_if<UIElement::AspectRatioRelativeSize>(&element.size); size)
+		{
+			const float frameRatio = frame.size.X() / frame.size.Y();
+			const float frameToElementRatio = size->ratio / size->ratio;
+			return { frame.size.X() * size->value / frameToElementRatio, frame.size.Y() * size->value };
 		}
 		else
 		{
@@ -88,18 +105,8 @@ SDL2pp::FRect GetRect(const UIFrame& frame, const UIElement& element)
 	const Vector2 sdl2YFlip = { 0, frame.size.Y() };
 	const Vector2 position = [&frame, &element] () -> Vector2
 	{
-			if(auto* pinStaticSize = std::get_if<UIElement::PinStaticSize>(&element.positionSize); pinStaticSize)
-			{
-				return { frame.size.X() * pinStaticSize->pin.X(), frame.size.Y() * -pinStaticSize->pin.Y() };
-			}
-			else if(auto* pinRelativeSize = std::get_if<UIElement::PinRelativeSize>(&element.positionSize); pinRelativeSize)
-			{
-				return { frame.size.X() * pinRelativeSize->pin.X(), frame.size.Y() * -pinRelativeSize->pin.Y() };
-			}
-			else
-			{
-				throw std::runtime_error("Unhandled case\n");
-			}
+		return { frame.size.X() * element.position.value.X(), frame.size.Y() * -element.position.value.Y() };
+
 	}() + pivotPositionOffset + sdl2YFlip;
 
 	rect.x = position.X();
@@ -146,19 +153,16 @@ int main()
 
 	UIElement testElement
 	{
-		UIElement::PinRelativeSize{ .pin ={0.2f, 0.2f}, .size = { 0.2f, 0.2f } },
-		{ 1.f, 1.f},
-		engine.renderer.backend->CreateTexture(testSurface)
+		.position = { { 0.2f, 0.2f }},
+		.size = UIElement::RelativeSize{ .value = { 0.2f, 0.2f } },
+		.pivot = { 1.f, 1.f },
+		.texture = engine.renderer.backend->CreateTexture(testSurface)
 	};
-	//testElement.positionSize = ;
-	//testElement.texture = std::move(engine.renderer.backend->CreateTexture(testSurface));
 
 	UIElement testElement2 = testElement;
-	testElement2.positionSize = UIElement::PinRelativeSize{ .pin = {0.5f, 0.5f}, .size = { 2.f, 2.f } };
-	testElement2.pivot = { 0.5f, 0.5f };
-	//testElement.size = testElement.texture->GetSize();
-	//testElement.pivot.Y() = 1;
-	//testElement.position.Y() = testElement.texture->GetSize().Y();
+	testElement2.position.value = { 0.2f, 0.2f };
+	testElement2.size = UIElement::AspectRatioRelativeSize{ .ratio = 9.f / 16.f, .value = 0.2f };
+	testElement2.pivot = { 1.f, 1.f };
 	std::chrono::duration<float> accumulator{ 0 };
 	while (true)
 	{
@@ -204,13 +208,8 @@ int main()
 				engine.renderer.backend->Clear();
 				SDL_Rect textLocation = { 400, 200, testFontSurface->w, testFontSurface->h };
 				engine.renderer.backend->Copy(testFontTexture, std::nullopt, textLocation);
-				//auto rect = testElement.UIRect();
-				//rect.x += engine.renderer.backend->GetOutputSize().X() * testElement.pin.X();
-				//rect.y -= engine.renderer.backend->GetOutputSize().Y() * testElement.pin.Y();
-				//rect.y += engine.renderer.backend->GetOutputSize().Y();
 
-				auto rect = GetRect(frame, testElement);
-				engine.renderer.backend->CopyEx(testElement.texture.get(), std::nullopt, rect, 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+				engine.renderer.backend->CopyEx(testElement.texture.get(), std::nullopt, GetRect(frame, testElement), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
 				engine.renderer.backend->CopyEx(testElement.texture.get(), std::nullopt, GetRect(frame, testElement2), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
 
 				engine.renderer.backend->SetRenderTarget(nullptr);
