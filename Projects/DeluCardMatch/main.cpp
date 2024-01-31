@@ -77,6 +77,43 @@ struct UIElement
 
 };
 
+Vector2 StaticSizeToRelativeSize(Vector2 requestedSize, Vector2 parentSize)
+{
+	return { requestedSize.X() / parentSize.X(), requestedSize.Y() / parentSize.Y() };
+}
+
+Vector2 RelativeSizeToStaticSize(Vector2 requestedSize, Vector2 parentSize)
+{
+	return { requestedSize.X() * parentSize.X(), requestedSize.Y() * parentSize.Y() };
+}
+
+UIElement::PositionVariant CalculateEquivalentPositionBasedOnPivot(Vector2 fromPivot, Vector2 toPivot, UIElement::PositionVariant fromPosition, UIElement::SizeVariant elementSize, Vector2 parentSize)
+{
+	const Vector2 pivotDiff = toPivot - fromPivot;
+	if(auto* size = std::get_if<UIElement::StaticSize>(&elementSize); size)
+	{
+		const Vector2 relativeSize = StaticSizeToRelativeSize(size->value, parentSize);
+		return { fromPosition.value + Vector2{ pivotDiff.X() * relativeSize.X(), pivotDiff.Y() * relativeSize.Y() } };
+	}
+	else if(auto* size = std::get_if<UIElement::RelativeSize>(&elementSize); size)
+	{
+		return { fromPosition.value + Vector2{ pivotDiff.X() * size->value.X(), pivotDiff.Y() * size->value.Y() } };
+	}
+	else if(auto* size = std::get_if<UIElement::AspectRatioRelativeSize>(&elementSize); size)
+	{
+		const float frameRatio = parentSize.X() / parentSize.Y();
+		const float frameToElementRatio = frameRatio / std::fabs(size->ratio);
+
+		return (size->ratio >= 0) ?
+			UIElement::PositionVariant{ fromPosition.value + Vector2{ pivotDiff.X() * size->value / frameToElementRatio, pivotDiff.Y() * size->value } } :
+			UIElement::PositionVariant{ fromPosition.value + Vector2{ pivotDiff.X() * size->value, pivotDiff.Y() * size->value * frameToElementRatio } };
+	}
+	else
+	{
+		throw std::runtime_error("Unhandled case\n");
+	}
+}
+
 SDL2pp::FRect GetRect(const UIFrame& frame, const UIElement& element)
 {
 	SDL2pp::FRect rect;
@@ -93,8 +130,10 @@ SDL2pp::FRect GetRect(const UIFrame& frame, const UIElement& element)
 		else if(auto* size = std::get_if<UIElement::AspectRatioRelativeSize>(&element.size); size)
 		{
 			const float frameRatio = frame.size.X() / frame.size.Y();
-			const float frameToElementRatio = size->ratio / size->ratio;
-			return { frame.size.X() * size->value / frameToElementRatio, frame.size.Y() * size->value };
+			const float frameToElementRatio = frameRatio / std::fabs(size->ratio);
+			return (size->ratio >= 0) ?
+				Vector2{ frame.size.X()* size->value / frameToElementRatio, frame.size.Y()* size->value } :
+				Vector2{ frame.size.X()* size->value, frame.size.Y()* size->value * frameToElementRatio };
 		}
 		else
 		{
@@ -154,15 +193,17 @@ int main()
 	UIElement testElement
 	{
 		.position = { { 0.2f, 0.2f }},
-		.size = UIElement::RelativeSize{ .value = { 0.2f, 0.2f } },
-		.pivot = { 1.f, 1.f },
+		.size = UIElement::AspectRatioRelativeSize{.ratio = -1 , .value = 0.3f },
+		.pivot = { 0.5f, 0.0f },
 		.texture = engine.renderer.backend->CreateTexture(testSurface)
 	};
 
 	UIElement testElement2 = testElement;
-	testElement2.position.value = { 0.2f, 0.2f };
-	testElement2.size = UIElement::AspectRatioRelativeSize{ .ratio = 9.f / 16.f, .value = 0.2f };
-	testElement2.pivot = { 1.f, 1.f };
+	//testElement2.size = UIElement::AspectRatioRelativeSize{ .ratio = 9.f / 16.f, .value = 0.2f };
+	testElement2.pivot = { 0.8f, 1.0f };
+	testElement2.position = CalculateEquivalentPositionBasedOnPivot(testElement.pivot, testElement2.pivot, testElement.position, testElement2.size, frame.size);
+	//testElement2.position = CalculateEquivalentPositionBasedOnPivot(testElement2.pivot, testElement.pivot, testElement2.position, testElement2.size, frame.size);
+	//testElement2.pivot = testElement.pivot;
 	std::chrono::duration<float> accumulator{ 0 };
 	while (true)
 	{
