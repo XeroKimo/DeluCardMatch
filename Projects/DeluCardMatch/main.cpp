@@ -46,20 +46,29 @@ struct UIFrame
 
 struct UIElement
 {
+	//Keeps the size of the element between all screen sizes
 	struct StaticSize
 	{
 		Vector2 value;
 	};
 
+	//Keeps the percentage of the screen size constant between screen sizes
 	struct RelativeSize
 	{
 		Vector2 value;
 	};
 
+	//Keeps the aspect ratio of the element constant between screen sizes
 	struct AspectRatioRelativeSize
 	{
 		float ratio;
 		float value;
+	};
+
+	//Keeps the edge of the element to the edge of the parent relatively constant between screen sizes
+	struct BorderConstantRelativeSize
+	{
+		Vector2 value;
 	};
 
 	struct Pin
@@ -68,7 +77,7 @@ struct UIElement
 	};
 
 	using PositionVariant = Pin;
-	using SizeVariant = std::variant<StaticSize, RelativeSize, AspectRatioRelativeSize>;
+	using SizeVariant = std::variant<StaticSize, RelativeSize, AspectRatioRelativeSize, BorderConstantRelativeSize>;
 
 	PositionVariant position;
 	SizeVariant size;
@@ -90,28 +99,57 @@ Vector2 RelativeSizeToStaticSize(Vector2 requestedSize, Vector2 parentSize)
 UIElement::PositionVariant CalculateEquivalentPositionBasedOnPivot(Vector2 fromPivot, Vector2 toPivot, UIElement::PositionVariant fromPosition, UIElement::SizeVariant elementSize, Vector2 parentSize)
 {
 	const Vector2 pivotDiff = toPivot - fromPivot;
-	if(auto* size = std::get_if<UIElement::StaticSize>(&elementSize); size)
+	const Vector2 offset = [pivotDiff, &elementSize, &parentSize]() -> Vector2
 	{
-		const Vector2 relativeSize = StaticSizeToRelativeSize(size->value, parentSize);
-		return { fromPosition.value + Vector2{ pivotDiff.X() * relativeSize.X(), pivotDiff.Y() * relativeSize.Y() } };
-	}
-	else if(auto* size = std::get_if<UIElement::RelativeSize>(&elementSize); size)
-	{
-		return { fromPosition.value + Vector2{ pivotDiff.X() * size->value.X(), pivotDiff.Y() * size->value.Y() } };
-	}
-	else if(auto* size = std::get_if<UIElement::AspectRatioRelativeSize>(&elementSize); size)
-	{
-		const float frameRatio = parentSize.X() / parentSize.Y();
-		const float frameToElementRatio = frameRatio / std::fabs(size->ratio);
+		if(auto* size = std::get_if<UIElement::StaticSize>(&elementSize); size)
+		{
+			const Vector2 relativeSize = StaticSizeToRelativeSize(size->value, parentSize);
+			return Vector2{ pivotDiff.X() * relativeSize.X(), pivotDiff.Y() * relativeSize.Y() };
+		}
+		else if(auto* size = std::get_if<UIElement::RelativeSize>(&elementSize); size)
+		{
+			return Vector2{ pivotDiff.X() * size->value.X(), pivotDiff.Y() * size->value.Y() };
+		}
+		else if(auto* size = std::get_if<UIElement::AspectRatioRelativeSize>(&elementSize); size)
+		{
+			const float frameRatio = parentSize.X() / parentSize.Y();
+			const float frameToElementRatio = frameRatio / std::fabs(size->ratio);
 
-		return (size->ratio >= 0) ?
-			UIElement::PositionVariant{ fromPosition.value + Vector2{ pivotDiff.X() * size->value / frameToElementRatio, pivotDiff.Y() * size->value } } :
-			UIElement::PositionVariant{ fromPosition.value + Vector2{ pivotDiff.X() * size->value, pivotDiff.Y() * size->value * frameToElementRatio } };
-	}
-	else
-	{
-		throw std::runtime_error("Unhandled case\n");
-	}
+			return (size->ratio >= 0) ?
+				Vector2{ pivotDiff.X() * size->value / frameToElementRatio, pivotDiff.Y() * size->value } :
+				Vector2{ pivotDiff.X() * size->value, pivotDiff.Y() * size->value * frameToElementRatio };
+		}
+		else if(auto* size = std::get_if<UIElement::BorderConstantRelativeSize>(&elementSize); size)
+		{
+			if(parentSize.X() >= parentSize.Y())
+			{
+				const float baseSize = parentSize.X() - parentSize.Y();
+				const float remainingSize = parentSize.X() - baseSize;
+				const Vector2 relativeSize = StaticSizeToRelativeSize({ baseSize + remainingSize * size->value.X(), parentSize.Y() * size->value.Y() }, parentSize);
+				return Vector2{ pivotDiff.X() * relativeSize.X(), pivotDiff.Y() * relativeSize.Y() };
+			}
+			else
+			{
+				const float baseSize = parentSize.Y() - parentSize.X();
+				const float remainingSize = parentSize.Y() - baseSize;
+				const Vector2 relativeSize = StaticSizeToRelativeSize({ parentSize.X() * size->value.X(), baseSize + remainingSize * size->value.Y() }, parentSize);
+				return Vector2{ pivotDiff.X() * relativeSize.X(), pivotDiff.Y() * relativeSize.Y() };
+			}
+		}
+		else
+		{
+			throw std::runtime_error("Unhandled case\n");
+		}
+	}();
+
+	return { fromPosition.value + offset };
+}
+
+void SetAnchors(UIElement& element, Vector2 minAnchor, Vector2 maxAnchor)
+{
+	const Vector2 size = maxAnchor - minAnchor;
+	element.size = UIElement::RelativeSize{ size };
+	element.position = UIElement::PositionVariant{ minAnchor + Vector2{ size.X() * element.pivot.X(), size.Y() * element.pivot.Y() } };
 }
 
 SDL2pp::FRect GetRect(const UIFrame& frame, const UIElement& element)
@@ -134,6 +172,21 @@ SDL2pp::FRect GetRect(const UIFrame& frame, const UIElement& element)
 			return (size->ratio >= 0) ?
 				Vector2{ frame.size.X()* size->value / frameToElementRatio, frame.size.Y()* size->value } :
 				Vector2{ frame.size.X()* size->value, frame.size.Y()* size->value * frameToElementRatio };
+		}
+		else if(auto* size = std::get_if<UIElement::BorderConstantRelativeSize>(&element.size); size)
+		{
+			if(frame.size.X() >= frame.size.Y())
+			{
+				const float baseSize = frame.size.X() - frame.size.Y();
+				const float remainingSize = frame.size.X() - baseSize;
+				return { baseSize + remainingSize * size->value.X(), frame.size.Y() * size->value.Y() };
+			}
+			else
+			{
+				const float baseSize = frame.size.Y() - frame.size.X();
+				const float remainingSize = frame.size.Y() - baseSize;
+				return { frame.size.X() * size->value.X(), baseSize + remainingSize * size->value.Y() };
+			}
 		}
 		else
 		{
@@ -176,7 +229,7 @@ int main()
 		});
 	std::chrono::duration<float> physicsAccumulator{0.f};
 
-	UIFrame frame{ { 1600, 900 } };
+	UIFrame frame{ { 3200, 1800 } };
 	frame.internalTexture = engine.renderer.backend->CreateTexture(
 		SDL_PIXELFORMAT_RGBA32, 
 		SDL2pp::TextureAccess(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET), 
@@ -192,15 +245,17 @@ int main()
 
 	UIElement testElement
 	{
-		.position = { { 0.2f, 0.2f }},
-		.size = UIElement::AspectRatioRelativeSize{.ratio = -1 , .value = 0.3f },
-		.pivot = { 0.5f, 0.0f },
+		.position = { { 0.5f, 0.5f }},
+		.size = UIElement::BorderConstantRelativeSize({ 0.9f, 0.9f }),
+		.pivot = { 0.5f, 0.5f },
 		.texture = engine.renderer.backend->CreateTexture(testSurface)
 	};
 
 	UIElement testElement2 = testElement;
+	testElement2.pivot = { 0.3f, 0.8f };
+	//SetAnchors(testElement2, { 0.05f, 0.05f }, { 0.95f, 0.95f });
+	//testElement2.size = UIElement::BorderConstantRelativeSize({ 0.5f, 0.5f });
 	//testElement2.size = UIElement::AspectRatioRelativeSize{ .ratio = 9.f / 16.f, .value = 0.2f };
-	testElement2.pivot = { 0.8f, 1.0f };
 	testElement2.position = CalculateEquivalentPositionBasedOnPivot(testElement.pivot, testElement2.pivot, testElement.position, testElement2.size, frame.size);
 	//testElement2.position = CalculateEquivalentPositionBasedOnPivot(testElement2.pivot, testElement.pivot, testElement2.position, testElement2.size, frame.size);
 	//testElement2.pivot = testElement.pivot;
