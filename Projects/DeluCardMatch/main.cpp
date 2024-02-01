@@ -152,47 +152,52 @@ void SetAnchors(UIElement& element, Vector2 minAnchor, Vector2 maxAnchor)
 	element.position = UIElement::PositionVariant{ minAnchor + Vector2{ size.X() * element.pivot.X(), size.Y() * element.pivot.Y() } };
 }
 
-SDL2pp::FRect GetRect(const UIFrame& frame, const UIElement& element)
+Vector2 GetStaticSize(const UIFrame& frame, const UIElement& element)
 {
-	SDL2pp::FRect rect;
-	const Vector2 size = [&frame, &element]() -> Vector2
-	{
-		if(auto* size = std::get_if<UIElement::StaticSize>(&element.size); size)
+	return [&frame, &element]() -> Vector2
 		{
-			return size->value;
-		}
-		else if(auto* size = std::get_if<UIElement::RelativeSize>(&element.size); size)
-		{
-			return { frame.size.X() * size->value.X(), frame.size.Y() * size->value.Y() };
-		}
-		else if(auto* size = std::get_if<UIElement::AspectRatioRelativeSize>(&element.size); size)
-		{
-			const float frameRatio = frame.size.X() / frame.size.Y();
-			const float frameToElementRatio = frameRatio / std::fabs(size->ratio);
-			return (size->ratio >= 0) ?
-				Vector2{ frame.size.X()* size->value / frameToElementRatio, frame.size.Y()* size->value } :
-				Vector2{ frame.size.X()* size->value, frame.size.Y()* size->value * frameToElementRatio };
-		}
-		else if(auto* size = std::get_if<UIElement::BorderConstantRelativeSize>(&element.size); size)
-		{
-			if(frame.size.X() >= frame.size.Y())
+			if(auto* size = std::get_if<UIElement::StaticSize>(&element.size); size)
 			{
-				const float baseSize = frame.size.X() - frame.size.Y();
-				const float remainingSize = frame.size.X() - baseSize;
-				return { baseSize + remainingSize * size->value.X(), frame.size.Y() * size->value.Y() };
+				return size->value;
+			}
+			else if(auto* size = std::get_if<UIElement::RelativeSize>(&element.size); size)
+			{
+				return { frame.size.X() * size->value.X(), frame.size.Y() * size->value.Y() };
+			}
+			else if(auto* size = std::get_if<UIElement::AspectRatioRelativeSize>(&element.size); size)
+			{
+				const float frameRatio = frame.size.X() / frame.size.Y();
+				const float frameToElementRatio = frameRatio / std::fabs(size->ratio);
+				return (size->ratio >= 0) ?
+					Vector2{ frame.size.X() * size->value / frameToElementRatio, frame.size.Y() * size->value } :
+					Vector2{ frame.size.X() * size->value, frame.size.Y() * size->value * frameToElementRatio };
+			}
+			else if(auto* size = std::get_if<UIElement::BorderConstantRelativeSize>(&element.size); size)
+			{
+				if(frame.size.X() >= frame.size.Y())
+				{
+					const float baseSize = frame.size.X() - frame.size.Y();
+					const float remainingSize = frame.size.X() - baseSize;
+					return { baseSize + remainingSize * size->value.X(), frame.size.Y() * size->value.Y() };
+				}
+				else
+				{
+					const float baseSize = frame.size.Y() - frame.size.X();
+					const float remainingSize = frame.size.Y() - baseSize;
+					return { frame.size.X() * size->value.X(), baseSize + remainingSize * size->value.Y() };
+				}
 			}
 			else
 			{
-				const float baseSize = frame.size.Y() - frame.size.X();
-				const float remainingSize = frame.size.Y() - baseSize;
-				return { frame.size.X() * size->value.X(), baseSize + remainingSize * size->value.Y() };
+				throw std::runtime_error("Unhandled case\n");
 			}
-		}
-		else
-		{
-			throw std::runtime_error("Unhandled case\n");
-		}
-	}();
+		}();
+}
+
+SDL2pp::FRect GetRect(const UIFrame& frame, const UIElement& element)
+{
+	SDL2pp::FRect rect;
+	const Vector2 size = GetStaticSize(frame, element);
 	const Vector2 pivotPositionOffset = { element.pivot.X() * -size.X(), (1 - element.pivot.Y()) * -size.Y() };
 	const Vector2 sdl2YFlip = { 0, frame.size.Y() };
 	const Vector2 position = [&frame, &element] () -> Vector2
@@ -206,6 +211,14 @@ SDL2pp::FRect GetRect(const UIFrame& frame, const UIElement& element)
 	rect.w = size.X();
 	rect.h = size.Y();
 	return rect;
+}
+
+bool IsOverlapping(Vector2 mousePos, const UIElement& element, const UIFrame& frame)
+{
+	auto size = StaticSizeToRelativeSize(GetStaticSize(frame, element), frame.size);
+	auto minPos = CalculateEquivalentPositionBasedOnPivot(element.pivot, { 0, 0 }, element.position, element.size, frame.size);
+	return mousePos.X() >= minPos.value.X() && mousePos.X() <= minPos.value.X() + size.X() &&
+		mousePos.Y() >= minPos.value.Y() && mousePos.Y() <= minPos.value.Y() + size.Y();
 }
 
 int main()
@@ -229,7 +242,7 @@ int main()
 		});
 	std::chrono::duration<float> physicsAccumulator{0.f};
 
-	UIFrame frame{ { 3200, 1800 } };
+	UIFrame frame{ { 900, 900} };
 	frame.internalTexture = engine.renderer.backend->CreateTexture(
 		SDL_PIXELFORMAT_RGBA32, 
 		SDL2pp::TextureAccess(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET), 
@@ -245,9 +258,9 @@ int main()
 
 	UIElement testElement
 	{
-		.position = { { 0.5f, 0.5f }},
-		.size = UIElement::BorderConstantRelativeSize({ 0.9f, 0.9f }),
-		.pivot = { 0.5f, 0.5f },
+		.position = { { 0.2f, 0.2f }},
+		.size = UIElement::RelativeSize({ 0.2f, 0.2f }),
+		.pivot = { 1.0f, 1.0f },
 		.texture = engine.renderer.backend->CreateTexture(testSurface)
 	};
 
@@ -255,11 +268,26 @@ int main()
 	testElement2.pivot = { 0.3f, 0.8f };
 	//SetAnchors(testElement2, { 0.05f, 0.05f }, { 0.95f, 0.95f });
 	//testElement2.size = UIElement::BorderConstantRelativeSize({ 0.5f, 0.5f });
-	//testElement2.size = UIElement::AspectRatioRelativeSize{ .ratio = 9.f / 16.f, .value = 0.2f };
-	testElement2.position = CalculateEquivalentPositionBasedOnPivot(testElement.pivot, testElement2.pivot, testElement.position, testElement2.size, frame.size);
+	testElement2.size = UIElement::AspectRatioRelativeSize{ .ratio = 9.f / 16.f, .value = 0.2f };
+	testElement2.position = { { 0.6f, 0.4f } };
+	//testElement2.position = CalculateEquivalentPositionBasedOnPivot(testElement.pivot, testElement2.pivot, testElement.position, testElement2.size, frame.size);
 	//testElement2.position = CalculateEquivalentPositionBasedOnPivot(testElement2.pivot, testElement.pivot, testElement2.position, testElement2.size, frame.size);
 	//testElement2.pivot = testElement.pivot;
 	std::chrono::duration<float> accumulator{ 0 };
+
+	UIElement mouseDebug
+	{
+		.texture = engine.renderer.backend->CreateTexture(SDL_PIXELFORMAT_RGBA32, static_cast<SDL2pp::TextureAccess>(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET), 8, 8)
+	};
+	engine.renderer.backend->SetRenderTarget(mouseDebug.texture.get());
+	engine.renderer.backend->SetDrawColor(SDL2pp::Color{ 255, 0, 0, 255 });
+
+	engine.renderer.backend->Clear();
+
+	engine.renderer.backend->SetRenderTarget(nullptr);
+	mouseDebug.size = UIElement::StaticSize{ { 8, 8 } };
+	mouseDebug.pivot = { 0.5f, 0.5f };
+
 	while (true)
 	{
 		SDL2pp::Event event;
@@ -269,7 +297,13 @@ int main()
 			{
 				break;
 			}
-
+			if(event.type == SDL2pp::EventType::SDL_MOUSEMOTION)
+			{
+				mouseDebug.position.value = { event.motion.x, engine.renderer.backend->GetOutputSize().Y() - event.motion.y };
+				std::cout << mouseDebug.position.value.X() << ", " << mouseDebug.position.value.Y() << "\n";
+				mouseDebug.position.value.X() /= static_cast<float>(engine.renderer.backend->GetOutputSize().X());
+				mouseDebug.position.value.Y() /= static_cast<float>(engine.renderer.backend->GetOutputSize().Y());
+			}
 			engine.ProcessEvent(event);
 		}
 		else
@@ -279,7 +313,7 @@ int main()
 			{
 				//testElement.position.Y() = testElement.size.Y() * std::sin(accumulator.count());
 				testElement.pivot.Y() = (std::sin(accumulator.count()));
-				std::cout << testElement.pivot.Y() << "\n";
+				//std::cout << testElement.pivot.Y() << "\n";
 				std::chrono::duration<float> deltaTime = std::chrono::duration_cast<std::chrono::duration<float>>(dt);
 				static constexpr std::chrono::duration<float> physicsStep{ 1.f / 60.f };
 				physicsAccumulator += deltaTime;
@@ -306,11 +340,18 @@ int main()
 				engine.renderer.backend->Copy(testFontTexture, std::nullopt, textLocation);
 
 				engine.renderer.backend->CopyEx(testElement.texture.get(), std::nullopt, GetRect(frame, testElement), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
-				engine.renderer.backend->CopyEx(testElement.texture.get(), std::nullopt, GetRect(frame, testElement2), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+				engine.renderer.backend->CopyEx(testElement2.texture.get(), std::nullopt, GetRect(frame, testElement2), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+				engine.renderer.backend->CopyEx(mouseDebug.texture.get(), std::nullopt, GetRect(frame, mouseDebug), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+				
+				if(IsOverlapping(mouseDebug.position.value, testElement, frame))
+					std::cout << "Overlapping first element\n";
+				if(IsOverlapping(mouseDebug.position.value, testElement2, frame))
+					std::cout << "Overlapping second element\n";
 
 				engine.renderer.backend->SetRenderTarget(nullptr);
 				engine.renderer.backend->Copy(frame.internalTexture.get(), std::nullopt, std::optional<SDL2pp::Rect>(std::nullopt));
 			}
+
 			engine.renderer.backend->Present();
 		}
 	}
