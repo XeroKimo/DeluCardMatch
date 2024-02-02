@@ -287,7 +287,7 @@ int main()
 	engine.renderer.backend->SetRenderTarget(nullptr);
 	mouseDebug.size = UIElement::StaticSize{ { 8, 8 } };
 	mouseDebug.pivot = { 0.5f, 0.5f };
-
+	UIElement* hoveredElement = nullptr;
 	while (true)
 	{
 		SDL2pp::Event event;
@@ -300,9 +300,23 @@ int main()
 			if(event.type == SDL2pp::EventType::SDL_MOUSEMOTION)
 			{
 				mouseDebug.position.value = { event.motion.x, engine.renderer.backend->GetOutputSize().Y() - event.motion.y };
-				std::cout << mouseDebug.position.value.X() << ", " << mouseDebug.position.value.Y() << "\n";
+				//std::cout << mouseDebug.position.value.X() << ", " << mouseDebug.position.value.Y() << "\n";
 				mouseDebug.position.value.X() /= static_cast<float>(engine.renderer.backend->GetOutputSize().X());
 				mouseDebug.position.value.Y() /= static_cast<float>(engine.renderer.backend->GetOutputSize().Y());
+			}
+			if(event.type == SDL2pp::EventType::SDL_MOUSEBUTTONDOWN)
+			{
+				if(event.button.button == SDL_BUTTON_LEFT && hoveredElement)
+				{
+					std::cout << "Button clicked\n";
+				}
+			}
+			if(event.type == SDL2pp::EventType::SDL_MOUSEBUTTONUP)
+			{
+				if(event.button.button == SDL_BUTTON_LEFT && hoveredElement)
+				{
+					std::cout << "Button Released\n";
+				}
 			}
 			engine.ProcessEvent(event);
 		}
@@ -343,11 +357,17 @@ int main()
 				engine.renderer.backend->CopyEx(testElement2.texture.get(), std::nullopt, GetRect(frame, testElement2), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
 				engine.renderer.backend->CopyEx(mouseDebug.texture.get(), std::nullopt, GetRect(frame, mouseDebug), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
 				
+				hoveredElement = nullptr;
 				if(IsOverlapping(mouseDebug.position.value, testElement, frame))
-					std::cout << "Overlapping first element\n";
+				{
+					hoveredElement = &testElement;
+					//std::cout << "Overlapping first element\n";
+				}
 				if(IsOverlapping(mouseDebug.position.value, testElement2, frame))
-					std::cout << "Overlapping second element\n";
-
+				{
+					hoveredElement = &testElement2;
+					//std::cout << "Overlapping second element\n";
+				}
 				engine.renderer.backend->SetRenderTarget(nullptr);
 				engine.renderer.backend->Copy(frame.internalTexture.get(), std::nullopt, std::optional<SDL2pp::Rect>(std::nullopt));
 			}
