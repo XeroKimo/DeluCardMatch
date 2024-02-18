@@ -38,11 +38,33 @@ struct ApplicationTimer
 	}
 };
 
+template<class Ty>
+concept HasStaticSize = requires(Ty t, Vector2 parentSize)
+{
+	std::invoke(&Ty::GetStaticSize, t, parentSize);
+};
+
+template<class Ty>
+concept HasStaticPosition = requires(Ty t, Vector2 parentSize)
+{
+	std::invoke(&Ty::GetStaticPosition, t, parentSize);
+};
+
 struct UIFrame
 {
 	Vector2 size;
 	SDL2pp::unique_ptr<SDL2pp::Texture> internalTexture;
 };
+
+Vector2 StaticPositionToRelativePosition(Vector2 requestedPosition, Vector2 parentSize) noexcept
+{
+	return xk::Math::HadamardDivision(requestedPosition, parentSize);
+}
+
+Vector2 RelativePositionToStaticPosition(Vector2 requestedPosition, Vector2 parentSize) noexcept
+{
+	return xk::Math::HadamardProduct(requestedPosition, parentSize);
+}
 
 struct UIElement
 {
@@ -71,19 +93,80 @@ struct UIElement
 		Vector2 value;
 	};
 
-	struct Pin
+	struct StaticPosition
 	{
 		Vector2 value;
+
+		static Vector2 GetStaticPosition(const StaticPosition& s, Vector2 parentSize) noexcept
+		{
+			return s.value;
+		}
 	};
 
-	using PositionVariant = Pin;
+	struct RelativePosition
+	{
+		Vector2 value;
+
+		static Vector2 GetStaticPosition(const RelativePosition& s, Vector2 parentSize) noexcept
+		{
+			return xk::Math::HadamardProduct(s.value, parentSize);
+		}
+	};
+
+	using PositionVariant = std::variant<StaticPosition, RelativePosition>;
 	using SizeVariant = std::variant<StaticSize, RelativeSize, AspectRatioRelativeSize, BorderConstantRelativeSize>;
 
+	UIFrame* ownerFrame;
 	PositionVariant position;
 	SizeVariant size;
 	Vector2 pivot;
 	SDL2pp::shared_ptr<SDL2pp::Texture> texture;
 
+	Vector2 GetStaticPosition() const noexcept
+	{
+		return std::visit([this](const auto& val) -> Vector2
+			{
+				using Ty = std::remove_cvref_t<decltype(val)>;
+
+				static_assert(HasStaticPosition<Ty>, "One of position representation does not contain a static position operation");
+
+				return std::invoke(&Ty::GetStaticPosition, val, GetParentStaticSize());
+			}, position);
+	}
+
+	Vector2 GetRelativePosition() const noexcept
+	{
+		return StaticPositionToRelativePosition(GetStaticPosition(), GetParentStaticSize());
+	}
+
+	void SetStaticPosition(Vector2 newPos) noexcept
+	{
+		if(auto* internalPos = std::get_if<StaticPosition>(&position); internalPos)
+		{
+			internalPos->value = newPos;
+		}
+		else if(auto* internalPos = std::get_if<RelativePosition>(&position); internalPos)
+		{
+			internalPos->value = StaticPositionToRelativePosition(newPos, GetParentStaticSize());
+		}
+	}
+
+	void SetRelativePosition(Vector2 newPos) noexcept
+	{
+		if(auto* internalPos = std::get_if<StaticPosition>(&position); internalPos)
+		{
+			internalPos->value = RelativePositionToStaticPosition(newPos, GetParentStaticSize());;
+		}
+		else if(auto* internalPos = std::get_if<RelativePosition>(&position); internalPos)
+		{
+			internalPos->value = newPos;
+		}
+	}
+
+	Vector2 GetParentStaticSize() const noexcept
+	{
+		return ownerFrame->size;
+	}
 };
 
 Vector2 StaticSizeToRelativeSize(Vector2 requestedSize, Vector2 parentSize)
@@ -98,58 +181,63 @@ Vector2 RelativeSizeToStaticSize(Vector2 requestedSize, Vector2 parentSize)
 
 UIElement::PositionVariant CalculateEquivalentPositionBasedOnPivot(Vector2 fromPivot, Vector2 toPivot, UIElement::PositionVariant fromPosition, UIElement::SizeVariant elementSize, Vector2 parentSize)
 {
-	const Vector2 pivotDiff = toPivot - fromPivot;
-	const Vector2 offset = [pivotDiff, &elementSize, &parentSize]() -> Vector2
-	{
-		if(auto* size = std::get_if<UIElement::StaticSize>(&elementSize); size)
+		const Vector2 pivotDiff = toPivot - fromPivot;
+		const Vector2 offset = [pivotDiff, &elementSize, &parentSize]() -> Vector2
 		{
-			const Vector2 relativeSize = StaticSizeToRelativeSize(size->value, parentSize);
-			return Vector2{ pivotDiff.X() * relativeSize.X(), pivotDiff.Y() * relativeSize.Y() };
-		}
-		else if(auto* size = std::get_if<UIElement::RelativeSize>(&elementSize); size)
-		{
-			return Vector2{ pivotDiff.X() * size->value.X(), pivotDiff.Y() * size->value.Y() };
-		}
-		else if(auto* size = std::get_if<UIElement::AspectRatioRelativeSize>(&elementSize); size)
-		{
-			const float frameRatio = parentSize.X() / parentSize.Y();
-			const float frameToElementRatio = frameRatio / std::fabs(size->ratio);
-
-			return (size->ratio >= 0) ?
-				Vector2{ pivotDiff.X() * size->value / frameToElementRatio, pivotDiff.Y() * size->value } :
-				Vector2{ pivotDiff.X() * size->value, pivotDiff.Y() * size->value * frameToElementRatio };
-		}
-		else if(auto* size = std::get_if<UIElement::BorderConstantRelativeSize>(&elementSize); size)
-		{
-			if(parentSize.X() >= parentSize.Y())
+			if(auto* size = std::get_if<UIElement::StaticSize>(&elementSize); size)
 			{
-				const float baseSize = parentSize.X() - parentSize.Y();
-				const float remainingSize = parentSize.X() - baseSize;
-				const Vector2 relativeSize = StaticSizeToRelativeSize({ baseSize + remainingSize * size->value.X(), parentSize.Y() * size->value.Y() }, parentSize);
+				const Vector2 relativeSize = StaticSizeToRelativeSize(size->value, parentSize);
 				return Vector2{ pivotDiff.X() * relativeSize.X(), pivotDiff.Y() * relativeSize.Y() };
+			}
+			else if(auto* size = std::get_if<UIElement::RelativeSize>(&elementSize); size)
+			{
+				return Vector2{ pivotDiff.X() * size->value.X(), pivotDiff.Y() * size->value.Y() };
+			}
+			else if(auto* size = std::get_if<UIElement::AspectRatioRelativeSize>(&elementSize); size)
+			{
+				const float frameRatio = parentSize.X() / parentSize.Y();
+				const float frameToElementRatio = frameRatio / std::fabs(size->ratio);
+
+				return (size->ratio >= 0) ?
+					Vector2{ pivotDiff.X() * size->value / frameToElementRatio, pivotDiff.Y() * size->value } :
+					Vector2{ pivotDiff.X() * size->value, pivotDiff.Y() * size->value * frameToElementRatio };
+			}
+			else if(auto* size = std::get_if<UIElement::BorderConstantRelativeSize>(&elementSize); size)
+			{
+				if(parentSize.X() >= parentSize.Y())
+				{
+					const float baseSize = parentSize.X() - parentSize.Y();
+					const float remainingSize = parentSize.X() - baseSize;
+					const Vector2 relativeSize = StaticSizeToRelativeSize({ baseSize + remainingSize * size->value.X(), parentSize.Y() * size->value.Y() }, parentSize);
+					return Vector2{ pivotDiff.X() * relativeSize.X(), pivotDiff.Y() * relativeSize.Y() };
+				}
+				else
+				{
+					const float baseSize = parentSize.Y() - parentSize.X();
+					const float remainingSize = parentSize.Y() - baseSize;
+					const Vector2 relativeSize = StaticSizeToRelativeSize({ parentSize.X() * size->value.X(), baseSize + remainingSize * size->value.Y() }, parentSize);
+					return Vector2{ pivotDiff.X() * relativeSize.X(), pivotDiff.Y() * relativeSize.Y() };
+				}
 			}
 			else
 			{
-				const float baseSize = parentSize.Y() - parentSize.X();
-				const float remainingSize = parentSize.Y() - baseSize;
-				const Vector2 relativeSize = StaticSizeToRelativeSize({ parentSize.X() * size->value.X(), baseSize + remainingSize * size->value.Y() }, parentSize);
-				return Vector2{ pivotDiff.X() * relativeSize.X(), pivotDiff.Y() * relativeSize.Y() };
+				throw std::runtime_error("Unhandled case\n");
 			}
-		}
-		else
-		{
-			throw std::runtime_error("Unhandled case\n");
-		}
-	}();
+		}();
 
-	return { fromPosition.value + offset };
+	if(auto* position = std::get_if<UIElement::RelativePosition>(&fromPosition); position)
+		return UIElement::RelativePosition{ position->value + offset };
+	else if(auto* position = std::get_if<UIElement::StaticPosition>(&fromPosition); position)
+		return UIElement::StaticPosition{ position->value + RelativeSizeToStaticSize(offset, parentSize) };
+	else
+		throw std::exception();// should be unreachable
 }
 
 void SetAnchors(UIElement& element, Vector2 minAnchor, Vector2 maxAnchor)
 {
 	const Vector2 size = maxAnchor - minAnchor;
 	element.size = UIElement::RelativeSize{ size };
-	element.position = UIElement::PositionVariant{ minAnchor + Vector2{ size.X() * element.pivot.X(), size.Y() * element.pivot.Y() } };
+	element.position = UIElement::RelativePosition{ minAnchor + Vector2{ size.X() * element.pivot.X(), size.Y() * element.pivot.Y() } };
 }
 
 Vector2 GetStaticSize(const UIFrame& frame, const UIElement& element)
@@ -202,7 +290,7 @@ SDL2pp::FRect GetRect(const UIFrame& frame, const UIElement& element)
 	const Vector2 sdl2YFlip = { 0, frame.size.Y() };
 	const Vector2 position = [&frame, &element] () -> Vector2
 	{
-		return { frame.size.X() * element.position.value.X(), frame.size.Y() * -element.position.value.Y() };
+		return { frame.size.X() * element.GetRelativePosition().X(), frame.size.Y() * -element.GetRelativePosition().Y() };
 
 	}() + pivotPositionOffset + sdl2YFlip;
 
@@ -217,8 +305,20 @@ bool IsOverlapping(Vector2 mousePos, const UIElement& element, const UIFrame& fr
 {
 	auto size = StaticSizeToRelativeSize(GetStaticSize(frame, element), frame.size);
 	auto minPos = CalculateEquivalentPositionBasedOnPivot(element.pivot, { 0, 0 }, element.position, element.size, frame.size);
-	return mousePos.X() >= minPos.value.X() && mousePos.X() <= minPos.value.X() + size.X() &&
-		mousePos.Y() >= minPos.value.Y() && mousePos.Y() <= minPos.value.Y() + size.Y();
+	auto minRelativePos = [minPos, &element]
+		{
+			if(auto* posRep = std::get_if<UIElement::StaticPosition>(&minPos); posRep)
+			{
+				return StaticPositionToRelativePosition(posRep->value, element.GetParentStaticSize());
+			}
+			else if(auto* posRep = std::get_if<UIElement::RelativePosition>(&minPos); posRep)
+			{
+				return posRep->value;
+			}
+		}();
+	//return true;
+	return mousePos.X() >= minRelativePos.X() && mousePos.X() <= minRelativePos.X() + size.X() &&
+		mousePos.Y() >= minRelativePos.Y() && mousePos.Y() <= minRelativePos.Y() + size.Y();
 }
 
 int main()
@@ -258,18 +358,18 @@ int main()
 
 	UIElement testElement
 	{
-		.position = { { 0.2f, 0.2f }},
+		.position = UIElement::RelativePosition{ { 0.2f, 0.2f } },
 		.size = UIElement::RelativeSize({ 0.2f, 0.2f }),
 		.pivot = { 1.0f, 1.0f },
 		.texture = engine.renderer.backend->CreateTexture(testSurface)
 	};
-
+	testElement.ownerFrame = &frame;
 	UIElement testElement2 = testElement;
 	testElement2.pivot = { 0.3f, 0.8f };
 	//SetAnchors(testElement2, { 0.05f, 0.05f }, { 0.95f, 0.95f });
 	//testElement2.size = UIElement::BorderConstantRelativeSize({ 0.5f, 0.5f });
 	testElement2.size = UIElement::AspectRatioRelativeSize{ .ratio = 9.f / 16.f, .value = 0.2f };
-	testElement2.position = { { 0.6f, 0.4f } };
+	testElement2.position = UIElement::StaticPosition{ { 500, 300 } };
 	//testElement2.position = CalculateEquivalentPositionBasedOnPivot(testElement.pivot, testElement2.pivot, testElement.position, testElement2.size, frame.size);
 	//testElement2.position = CalculateEquivalentPositionBasedOnPivot(testElement2.pivot, testElement.pivot, testElement2.position, testElement2.size, frame.size);
 	//testElement2.pivot = testElement.pivot;
@@ -285,6 +385,7 @@ int main()
 	engine.renderer.backend->Clear();
 
 	engine.renderer.backend->SetRenderTarget(nullptr);
+	mouseDebug.ownerFrame = &frame;
 	mouseDebug.size = UIElement::StaticSize{ { 8, 8 } };
 	mouseDebug.pivot = { 0.5f, 0.5f };
 	UIElement* hoveredElement = nullptr;
@@ -299,10 +400,11 @@ int main()
 			}
 			if(event.type == SDL2pp::EventType::SDL_MOUSEMOTION)
 			{
-				mouseDebug.position.value = { event.motion.x, engine.renderer.backend->GetOutputSize().Y() - event.motion.y };
+				mouseDebug.SetRelativePosition(xk::Math::HadamardDivision(Vector2{ event.motion.x, engine.renderer.backend->GetOutputSize().Y() - event.motion.y }, engine.renderer.backend->GetOutputSize()));
+				//mouseDebug.position.value = ;
 				//std::cout << mouseDebug.position.value.X() << ", " << mouseDebug.position.value.Y() << "\n";
-				mouseDebug.position.value.X() /= static_cast<float>(engine.renderer.backend->GetOutputSize().X());
-				mouseDebug.position.value.Y() /= static_cast<float>(engine.renderer.backend->GetOutputSize().Y());
+				//mouseDebug.position.value.X() /= static_cast<float>(engine.renderer.backend->GetOutputSize().X());
+				//mouseDebug.position.value.Y() /= static_cast<float>(engine.renderer.backend->GetOutputSize().Y());
 			}
 			if(event.type == SDL2pp::EventType::SDL_MOUSEBUTTONDOWN)
 			{
@@ -358,12 +460,12 @@ int main()
 				engine.renderer.backend->CopyEx(mouseDebug.texture.get(), std::nullopt, GetRect(frame, mouseDebug), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
 				
 				hoveredElement = nullptr;
-				if(IsOverlapping(mouseDebug.position.value, testElement, frame))
+				if(IsOverlapping(mouseDebug.GetRelativePosition(), testElement, frame))
 				{
 					hoveredElement = &testElement;
 					//std::cout << "Overlapping first element\n";
 				}
-				if(IsOverlapping(mouseDebug.position.value, testElement2, frame))
+				if(IsOverlapping(mouseDebug.GetRelativePosition(), testElement2, frame))
 				{
 					hoveredElement = &testElement2;
 					//std::cout << "Overlapping second element\n";

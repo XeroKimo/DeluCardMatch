@@ -48,24 +48,24 @@ namespace SDL2pp
 		using self_type = DerivedSelf;
 
 	public:
-		TextureAccess GetTextureAccess()
+		TextureAccess GetTextureAccess() const
 		{
 			return QueryTexture().access;
 		}
 
-		BlendMode GetBlendMode()
+		BlendMode GetBlendMode() const
 		{
 			BlendMode mode;
 			ThrowIfFailed(SDL_GetTextureBlendMode(&Get(), &mode));
 			return mode;
 		}
 
-		PixelFormat GetPixelFormat()
+		PixelFormat GetPixelFormat() const
 		{
 			return QueryTexture().format;
 		}
 
-		iVector2 GetSize()
+		iVector2 GetSize() const
 		{
 			return QueryTexture().size;
 		}
@@ -75,7 +75,7 @@ namespace SDL2pp
 			ThrowIfFailed(SDL_SetTextureBlendMode(&Get(), mode));
 		}
 
-		TextureData QueryTexture()
+		TextureData QueryTexture() const
 		{
 			TextureData data;
 			Uint32 format;

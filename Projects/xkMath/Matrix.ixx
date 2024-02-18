@@ -6,6 +6,8 @@ module;
 #include <concepts>
 #include <cstdint>
 #include <cmath>
+#include <functional>
+
 #pragma warning(disable:4244)
 export module xk.Math.Matrix;
 
@@ -463,6 +465,21 @@ namespace xk::Math
 			0, 0, 0, 1
 		};
 	}
+
+	export template<class Ty, class Ty2, std::size_t ElementCount>
+	Vector<Ty, ElementCount> HadamardProduct(Vector<Ty, ElementCount> lh, const Vector<Ty2, ElementCount>& rh)
+	{
+		std::transform(lh.begin(), lh.end(), rh.begin(), lh.begin(), std::multiplies{});
+		return lh;
+	}
+
+	export template<class Ty, class Ty2, std::size_t ElementCount>
+	Vector<Ty, ElementCount> HadamardDivision(Vector<Ty, ElementCount> lh, const Vector<Ty2, ElementCount>& rh)
+	{
+		std::transform(lh.begin(), lh.end(), rh.begin(), lh.begin(), std::divides{});
+		return lh;
+	}
+
 	export namespace Aliases
 	{
 		using Vector2 = Vector<float, 2>;
