@@ -66,18 +66,38 @@ Vector2 RelativePositionToStaticPosition(Vector2 requestedPosition, Vector2 pare
 	return xk::Math::HadamardProduct(requestedPosition, parentSize);
 }
 
+Vector2 StaticSizeToRelativeSize(Vector2 requestedSize, Vector2 parentSize)
+{
+	return { requestedSize.X() / parentSize.X(), requestedSize.Y() / parentSize.Y() };
+}
+
+Vector2 RelativeSizeToStaticSize(Vector2 requestedSize, Vector2 parentSize)
+{
+	return { requestedSize.X() * parentSize.X(), requestedSize.Y() * parentSize.Y() };
+}
+
 struct UIElement
 {
 	//Keeps the size of the element between all screen sizes
 	struct StaticSize
 	{
 		Vector2 value;
+
+		static Vector2 GetStaticSize(const StaticSize& s, Vector2 parentSize) noexcept
+		{
+			return s.value;
+		}
 	};
 
 	//Keeps the percentage of the screen size constant between screen sizes
 	struct RelativeSize
 	{
 		Vector2 value;
+
+		static Vector2 GetStaticSize(const RelativeSize& s, Vector2 parentSize) noexcept
+		{
+			return { parentSize.X() * s.value.X(), parentSize.Y() * s.value.Y() };
+		}
 	};
 
 	//Keeps the aspect ratio of the element constant between screen sizes
@@ -85,12 +105,37 @@ struct UIElement
 	{
 		float ratio;
 		float value;
+
+		static Vector2 GetStaticSize(const AspectRatioRelativeSize& s, Vector2 parentSize) noexcept
+		{
+			const float parentRatio = parentSize.X() / parentSize.Y();
+			const float parentToElementRatio = parentRatio / std::fabs(s.ratio);
+			return (s.ratio >= 0) ?
+				Vector2{ parentSize.X() * s.value / parentToElementRatio, parentSize.Y() * s.value } :
+				Vector2{ parentSize.X() * s.value, parentSize.Y() * s.value * parentToElementRatio };
+		}
 	};
 
 	//Keeps the edge of the element to the edge of the parent relatively constant between screen sizes
 	struct BorderConstantRelativeSize
 	{
 		Vector2 value;
+
+		static Vector2 GetStaticSize(const BorderConstantRelativeSize& s, Vector2 parentSize) noexcept
+		{
+			if(parentSize.X() >= parentSize.Y())
+			{
+				const float baseSize = parentSize.X() - parentSize.Y();
+				const float remainingSize = parentSize.X() - baseSize;
+				return { baseSize + remainingSize * s.value.X(), parentSize.Y() * s.value.Y() };
+			}
+			else
+			{
+				const float baseSize = parentSize.Y() - parentSize.X();
+				const float remainingSize = parentSize.Y() - baseSize;
+				return { parentSize.X() * s.value.X(), baseSize + remainingSize * s.value.Y() };
+			}
+		}
 	};
 
 	struct StaticPosition
@@ -121,6 +166,28 @@ struct UIElement
 	SizeVariant size;
 	Vector2 pivot;
 	SDL2pp::shared_ptr<SDL2pp::Texture> texture;
+
+	Vector2 GetStaticSize() const noexcept
+	{
+		return std::visit([this](const auto& val) -> Vector2
+			{
+				using Ty = std::remove_cvref_t<decltype(val)>;
+
+				static_assert(HasStaticSize<Ty>, "One of position representation does not contain a static position operation");
+
+				return std::invoke(&Ty::GetStaticSize, val, GetParentStaticSize());
+			}, size);
+	}
+
+	Vector2 GetRelativeSizeToParent() const noexcept
+	{
+		return StaticSizeToRelativeSize(GetStaticSize(), GetParentStaticSize());
+	}
+
+	Vector2 GetRelativeSizeToFrame() const noexcept
+	{
+		return StaticSizeToRelativeSize(GetStaticSize(), ownerFrame->size);
+	}
 
 	Vector2 GetStaticPosition() const noexcept
 	{
@@ -169,20 +236,10 @@ struct UIElement
 	}
 };
 
-Vector2 StaticSizeToRelativeSize(Vector2 requestedSize, Vector2 parentSize)
-{
-	return { requestedSize.X() / parentSize.X(), requestedSize.Y() / parentSize.Y() };
-}
-
-Vector2 RelativeSizeToStaticSize(Vector2 requestedSize, Vector2 parentSize)
-{
-	return { requestedSize.X() * parentSize.X(), requestedSize.Y() * parentSize.Y() };
-}
-
 UIElement::PositionVariant CalculateEquivalentPositionBasedOnPivot(Vector2 fromPivot, Vector2 toPivot, UIElement::PositionVariant fromPosition, UIElement::SizeVariant elementSize, Vector2 parentSize)
 {
-		const Vector2 pivotDiff = toPivot - fromPivot;
-		const Vector2 offset = [pivotDiff, &elementSize, &parentSize]() -> Vector2
+	const Vector2 pivotDiff = toPivot - fromPivot;
+	const Vector2 offset = [pivotDiff, &elementSize, &parentSize]() -> Vector2
 		{
 			if(auto* size = std::get_if<UIElement::StaticSize>(&elementSize); size)
 			{
@@ -225,12 +282,12 @@ UIElement::PositionVariant CalculateEquivalentPositionBasedOnPivot(Vector2 fromP
 			}
 		}();
 
-	if(auto* position = std::get_if<UIElement::RelativePosition>(&fromPosition); position)
-		return UIElement::RelativePosition{ position->value + offset };
-	else if(auto* position = std::get_if<UIElement::StaticPosition>(&fromPosition); position)
-		return UIElement::StaticPosition{ position->value + RelativeSizeToStaticSize(offset, parentSize) };
-	else
-		throw std::exception();// should be unreachable
+		if(auto* position = std::get_if<UIElement::RelativePosition>(&fromPosition); position)
+			return UIElement::RelativePosition{ position->value + offset };
+		else if(auto* position = std::get_if<UIElement::StaticPosition>(&fromPosition); position)
+			return UIElement::StaticPosition{ position->value + RelativeSizeToStaticSize(offset, parentSize) };
+		else
+			throw std::exception();// should be unreachable
 }
 
 void SetAnchors(UIElement& element, Vector2 minAnchor, Vector2 maxAnchor)
@@ -240,70 +297,28 @@ void SetAnchors(UIElement& element, Vector2 minAnchor, Vector2 maxAnchor)
 	element.position = UIElement::RelativePosition{ minAnchor + Vector2{ size.X() * element.pivot.X(), size.Y() * element.pivot.Y() } };
 }
 
-Vector2 GetStaticSize(const UIFrame& frame, const UIElement& element)
-{
-	return [&frame, &element]() -> Vector2
-		{
-			if(auto* size = std::get_if<UIElement::StaticSize>(&element.size); size)
-			{
-				return size->value;
-			}
-			else if(auto* size = std::get_if<UIElement::RelativeSize>(&element.size); size)
-			{
-				return { frame.size.X() * size->value.X(), frame.size.Y() * size->value.Y() };
-			}
-			else if(auto* size = std::get_if<UIElement::AspectRatioRelativeSize>(&element.size); size)
-			{
-				const float frameRatio = frame.size.X() / frame.size.Y();
-				const float frameToElementRatio = frameRatio / std::fabs(size->ratio);
-				return (size->ratio >= 0) ?
-					Vector2{ frame.size.X() * size->value / frameToElementRatio, frame.size.Y() * size->value } :
-					Vector2{ frame.size.X() * size->value, frame.size.Y() * size->value * frameToElementRatio };
-			}
-			else if(auto* size = std::get_if<UIElement::BorderConstantRelativeSize>(&element.size); size)
-			{
-				if(frame.size.X() >= frame.size.Y())
-				{
-					const float baseSize = frame.size.X() - frame.size.Y();
-					const float remainingSize = frame.size.X() - baseSize;
-					return { baseSize + remainingSize * size->value.X(), frame.size.Y() * size->value.Y() };
-				}
-				else
-				{
-					const float baseSize = frame.size.Y() - frame.size.X();
-					const float remainingSize = frame.size.Y() - baseSize;
-					return { frame.size.X() * size->value.X(), baseSize + remainingSize * size->value.Y() };
-				}
-			}
-			else
-			{
-				throw std::runtime_error("Unhandled case\n");
-			}
-		}();
-}
-
 SDL2pp::FRect GetRect(const UIFrame& frame, const UIElement& element)
 {
 	SDL2pp::FRect rect;
-	const Vector2 size = GetStaticSize(frame, element);
+	const Vector2 size = element.GetStaticSize();
 	const Vector2 pivotPositionOffset = { element.pivot.X() * -size.X(), (1 - element.pivot.Y()) * -size.Y() };
 	const Vector2 sdl2YFlip = { 0, frame.size.Y() };
-	const Vector2 position = [&frame, &element] () -> Vector2
-	{
-		return { frame.size.X() * element.GetRelativePosition().X(), frame.size.Y() * -element.GetRelativePosition().Y() };
+	const Vector2 position = [&frame, &element]() -> Vector2
+		{
+			return { frame.size.X() * element.GetRelativePosition().X(), frame.size.Y() * -element.GetRelativePosition().Y() };
 
-	}() + pivotPositionOffset + sdl2YFlip;
+		}() + pivotPositionOffset + sdl2YFlip;
 
-	rect.x = position.X();
-	rect.y = position.Y();
-	rect.w = size.X();
-	rect.h = size.Y();
-	return rect;
+		rect.x = position.X();
+		rect.y = position.Y();
+		rect.w = size.X();
+		rect.h = size.Y();
+		return rect;
 }
 
 bool IsOverlapping(Vector2 mousePos, const UIElement& element, const UIFrame& frame)
 {
-	auto size = StaticSizeToRelativeSize(GetStaticSize(frame, element), frame.size);
+	auto size = element.GetRelativeSizeToFrame();
 	auto minPos = CalculateEquivalentPositionBasedOnPivot(element.pivot, { 0, 0 }, element.position, element.size, frame.size);
 	auto minRelativePos = [minPos, &element]
 		{
@@ -317,8 +332,8 @@ bool IsOverlapping(Vector2 mousePos, const UIElement& element, const UIFrame& fr
 			}
 		}();
 	//return true;
-	return mousePos.X() >= minRelativePos.X() && mousePos.X() <= minRelativePos.X() + size.X() &&
-		mousePos.Y() >= minRelativePos.Y() && mousePos.Y() <= minRelativePos.Y() + size.Y();
+		return mousePos.X() >= minRelativePos.X() && mousePos.X() <= minRelativePos.X() + size.X() &&
+			mousePos.Y() >= minRelativePos.Y() && mousePos.Y() <= minRelativePos.Y() + size.Y();
 }
 
 int main()
@@ -335,17 +350,17 @@ int main()
 	DeluEngine::Input::defaultController = &engine.controller;
 	engine.CreateScene(GameMain(engine));
 	engine.renderer.debugCallbacks.push_back([&engine](DeluEngine::DebugRenderer& renderer)
-		{ 
+		{
 			engine.scene->DebugDraw(renderer);
 			engine.box2DCallbacks.SetFlags(b2Draw::e_shapeBit);
 			engine.physicsWorld.DebugDraw();
 		});
-	std::chrono::duration<float> physicsAccumulator{0.f};
+	std::chrono::duration<float> physicsAccumulator{ 0.f };
 
-	UIFrame frame{ { 900, 900} };
+	UIFrame frame{ { 1600, 900} };
 	frame.internalTexture = engine.renderer.backend->CreateTexture(
-		SDL_PIXELFORMAT_RGBA32, 
-		SDL2pp::TextureAccess(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET), 
+		SDL_PIXELFORMAT_RGBA32,
+		SDL2pp::TextureAccess(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET),
 		frame.size.X(), frame.size.Y());
 	frame.internalTexture->SetBlendMode(SDL_BLENDMODE_BLEND);
 
@@ -358,18 +373,19 @@ int main()
 
 	UIElement testElement
 	{
-		.position = UIElement::RelativePosition{ { 0.2f, 0.2f } },
-		.size = UIElement::RelativeSize({ 0.2f, 0.2f }),
-		.pivot = { 1.0f, 1.0f },
+		.position = UIElement::RelativePosition{ { 0.5f, 0.5f } },
+		.size = UIElement::RelativeSize({ 0.8f, 0.8f }),
+		.pivot = { 0.5f, 0.5f },
 		.texture = engine.renderer.backend->CreateTexture(testSurface)
 	};
 	testElement.ownerFrame = &frame;
 	UIElement testElement2 = testElement;
-	testElement2.pivot = { 0.3f, 0.8f };
+	testElement2.pivot = { 0.5f, 0.5f };
 	//SetAnchors(testElement2, { 0.05f, 0.05f }, { 0.95f, 0.95f });
-	//testElement2.size = UIElement::BorderConstantRelativeSize({ 0.5f, 0.5f });
-	testElement2.size = UIElement::AspectRatioRelativeSize{ .ratio = 9.f / 16.f, .value = 0.2f };
-	testElement2.position = UIElement::StaticPosition{ { 500, 300 } };
+	testElement2.size = UIElement::BorderConstantRelativeSize({ 0.8f, 0.8f });
+	//testElement2.size = UIElement::AspectRatioRelativeSize{ .ratio = 9.f / 16.f, .value = 0.2f };
+	testElement2.position = UIElement::RelativePosition{ { 0.5f, 0.5f } };
+	//testElement2.position = UIElement::StaticPosition{ { 500, 300 } };
 	//testElement2.position = CalculateEquivalentPositionBasedOnPivot(testElement.pivot, testElement2.pivot, testElement.position, testElement2.size, frame.size);
 	//testElement2.position = CalculateEquivalentPositionBasedOnPivot(testElement2.pivot, testElement.pivot, testElement2.position, testElement2.size, frame.size);
 	//testElement2.pivot = testElement.pivot;
@@ -389,12 +405,12 @@ int main()
 	mouseDebug.size = UIElement::StaticSize{ { 8, 8 } };
 	mouseDebug.pivot = { 0.5f, 0.5f };
 	UIElement* hoveredElement = nullptr;
-	while (true)
+	while(true)
 	{
 		SDL2pp::Event event;
-		if (SDL2pp::PollEvent(event))
+		if(SDL2pp::PollEvent(event))
 		{
-			if (event.type == SDL2pp::EventType::SDL_QUIT)
+			if(event.type == SDL2pp::EventType::SDL_QUIT)
 			{
 				break;
 			}
@@ -426,23 +442,23 @@ int main()
 		{
 			engine.controllerContext.Execute(engine.controller);
 			timer.Tick([&](std::chrono::nanoseconds dt)
-			{
-				//testElement.position.Y() = testElement.size.Y() * std::sin(accumulator.count());
-				testElement.pivot.Y() = (std::sin(accumulator.count()));
-				//std::cout << testElement.pivot.Y() << "\n";
-				std::chrono::duration<float> deltaTime = std::chrono::duration_cast<std::chrono::duration<float>>(dt);
-				static constexpr std::chrono::duration<float> physicsStep{ 1.f / 60.f };
-				physicsAccumulator += deltaTime;
-				accumulator += deltaTime;
-				while (physicsAccumulator >= physicsStep)
 				{
-					engine.physicsWorld.Step(physicsStep.count(), 8, 3);
-					physicsAccumulator -= physicsStep;
+					//testElement.position.Y() = testElement.size.Y() * std::sin(accumulator.count());
+					testElement.pivot.Y() = (std::sin(accumulator.count()) + 1) / 2;
+					//std::cout << testElement.pivot.Y() << "\n";
+					std::chrono::duration<float> deltaTime = std::chrono::duration_cast<std::chrono::duration<float>>(dt);
+					static constexpr std::chrono::duration<float> physicsStep{ 1.f / 60.f };
+					physicsAccumulator += deltaTime;
+					accumulator += deltaTime;
+					while(physicsAccumulator >= physicsStep)
+					{
+						engine.physicsWorld.Step(physicsStep.count(), 8, 3);
+						physicsAccumulator -= physicsStep;
 
-					//std::cout << "Body pos " << b->GetPosition().x << ", " << b->GetPosition().y << "\n";
-				}
-				engine.scene->Update(deltaTime.count());
-			});
+						//std::cout << "Body pos " << b->GetPosition().x << ", " << b->GetPosition().y << "\n";
+					}
+					engine.scene->Update(deltaTime.count());
+				});
 
 			engine.controller.SwapBuffers();
 
@@ -458,7 +474,7 @@ int main()
 				engine.renderer.backend->CopyEx(testElement.texture.get(), std::nullopt, GetRect(frame, testElement), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
 				engine.renderer.backend->CopyEx(testElement2.texture.get(), std::nullopt, GetRect(frame, testElement2), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
 				engine.renderer.backend->CopyEx(mouseDebug.texture.get(), std::nullopt, GetRect(frame, mouseDebug), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
-				
+
 				hoveredElement = nullptr;
 				if(IsOverlapping(mouseDebug.GetRelativePosition(), testElement, frame))
 				{
