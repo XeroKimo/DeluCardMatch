@@ -13,6 +13,7 @@
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_image.h>
 #include <variant>
+#include <algorithm>
 
 import DeluEngine;
 import xk.Math.Matrix;
@@ -84,8 +85,8 @@ struct AspectRatioRelativeSize
 		const float parentRatio = parentSize.X() / parentSize.Y();
 		const float parentToElementRatio = parentRatio / std::fabs(s.ratio);
 		return (s.ratio >= 0) ?
-			Vector2{ parentSize.X() * s.value / parentToElementRatio, parentSize.Y() * s.value } :
-			Vector2{ parentSize.X() * s.value, parentSize.Y() * s.value * parentToElementRatio };
+			Vector2{ parentSize.X() * s.value, parentSize.Y() * s.value * parentToElementRatio } :
+			Vector2{ parentSize.X() * s.value / parentToElementRatio, parentSize.Y() * s.value };
 	}
 };
 
@@ -198,14 +199,24 @@ PositionVariant ConvertPivotEquivalentPosition(Vector2 fromPivot, Vector2 toPivo
 	}
 }
 
+template<class T, class U> struct IsVariantMember;
+
+template<class T, class... Ts> 
+struct IsVariantMember<T, std::variant<Ts...>> : std::bool_constant<(std::same_as<T, Ts> || ...)>
+{
+};
+
+template<class Ty, class VariantTy>
+concept VariantMember = (IsVariantMember<Ty, VariantTy>::value);
+
 struct UIElement
 {
 
 	UIFrame* ownerFrame;
-	PositionVariant position;
-	SizeVariant size;
 
 private:
+	PositionVariant m_position;
+	SizeVariant m_size;
 	Vector2 m_pivot;
 
 public:
@@ -222,10 +233,10 @@ public:
 			{
 				using Ty = std::remove_cvref_t<decltype(val)>;
 
-				static_assert(HasStaticSize<Ty>, "One of position representation does not contain a static position operation");
+				static_assert(HasStaticSize<Ty>, "One of size representation does not contain a static size operation");
 
 				return std::invoke(&Ty::GetStaticSize, val, GetParentStaticSize());
-			}, size);
+			}, m_size);
 	}
 
 	Vector2 GetRelativeSizeToParent() const noexcept
@@ -247,12 +258,71 @@ public:
 				static_assert(HasStaticPosition<Ty>, "One of position representation does not contain a static position operation");
 
 				return std::invoke(&Ty::GetStaticPosition, val, GetParentStaticSize());
-			}, position);
+			}, m_position);
 	}
 
 	Vector2 GetRelativePosition() const noexcept
 	{
 		return StaticPositionToRelativePosition(GetStaticPosition(), GetParentStaticSize());
+	}
+
+	template<VariantMember<PositionVariant> Ty>
+	void ConvertPositionRepresentation() noexcept
+	{
+		static_assert(std::same_as<PositionVariant, std::variant<StaticPosition, RelativePosition>>, "Position variant changed");
+		if constexpr(std::same_as<Ty, StaticPosition>)
+		{
+			if(auto internalPos = std::get_if<RelativePosition>(&m_position); internalPos)
+			{
+				m_position = StaticPosition{ RelativePositionToStaticPosition(internalPos->value, GetParentStaticSize()) };
+			}
+		}
+		else if constexpr(std::same_as<Ty, RelativePosition>)
+		{
+			if(auto internalPos = std::get_if<StaticPosition>(&m_position); internalPos)
+			{
+				m_position = RelativePosition{ StaticPositionToRelativePosition(internalPos->value, GetParentStaticSize()) };
+			}
+		}
+	}
+
+	template<VariantMember<SizeVariant> Ty>
+	void ConvertSizeRepresentation()
+	{
+		if constexpr(std::same_as<Ty, StaticSize>)
+		{
+			m_size = StaticSize{ GetStaticSize() };
+		}
+		else if constexpr(std::same_as<Ty, RelativeSize>)
+		{
+			m_size = RelativeSize{ GetRelativeSizeToParent() };
+		}
+		else if constexpr(std::same_as<Ty, AspectRatioRelativeSize>)
+		{
+			const Vector2 staticSize = GetStaticSize();
+			const Vector2 parentSize = GetParentSize();
+			m_size = AspectRatioRelativeSize{ .ratio = staticSize.X() / staticSize.Y(), staticSize.X() / parentSize.X() };
+		}
+		else if constexpr(std::same_as<Ty, BorderConstantRelativeSize>)
+		{
+			const Vector2 parentSize = GetParentStaticSize();
+			const Vector2 baseSize = Vector2{ std::min(parentSize.X(), parentSize.Y())};
+			const Vector2 variableSize = Vector2{ std::max(parentSize.X(), parentSize.Y()) };
+			
+			m_size = BorderConstantRelativeSize{ xk::Math::HadamardDivision(GetStaticSize() - baseSize, variableSize) };
+		}
+	}
+
+	template<VariantMember<PositionVariant> Ty>
+	void SetPositionRepresentation(Ty val)
+	{
+		m_position = val;
+	}
+
+	template<VariantMember<SizeVariant> Ty>
+	void SetSizeRepresentation(Ty val)
+	{
+		m_size = val;
 	}
 
 	void SetPivot(Vector2 pivot, PivotChangePolicy policy = PivotChangePolicy::NoPositionChange) noexcept
@@ -266,7 +336,7 @@ public:
 		}
 		case PivotChangePolicy::NoVisualChange:
 		{
-			position = ConvertPivotEquivalentPosition(m_pivot, pivot, position, GetRelativeSizeToParent(), GetParentStaticSize());
+			m_position = ConvertPivotEquivalentPosition(m_pivot, pivot, m_position, GetRelativeSizeToParent(), GetParentStaticSize());
 			m_pivot = pivot;
 			break;
 		}
@@ -277,11 +347,11 @@ public:
 
 	void SetStaticPosition(Vector2 newPos) noexcept
 	{
-		if(auto* internalPos = std::get_if<StaticPosition>(&position); internalPos)
+		if(auto* internalPos = std::get_if<StaticPosition>(&m_position); internalPos)
 		{
 			internalPos->value = newPos;
 		}
-		else if(auto* internalPos = std::get_if<RelativePosition>(&position); internalPos)
+		else if(auto* internalPos = std::get_if<RelativePosition>(&m_position); internalPos)
 		{
 			internalPos->value = StaticPositionToRelativePosition(newPos, GetParentStaticSize());
 		}
@@ -289,11 +359,11 @@ public:
 
 	void SetRelativePosition(Vector2 newPos) noexcept
 	{
-		if(auto* internalPos = std::get_if<StaticPosition>(&position); internalPos)
+		if(auto* internalPos = std::get_if<StaticPosition>(&m_position); internalPos)
 		{
 			internalPos->value = RelativePositionToStaticPosition(newPos, GetParentStaticSize());;
 		}
-		else if(auto* internalPos = std::get_if<RelativePosition>(&position); internalPos)
+		else if(auto* internalPos = std::get_if<RelativePosition>(&m_position); internalPos)
 		{
 			internalPos->value = newPos;
 		}
@@ -308,8 +378,8 @@ public:
 void SetAnchors(UIElement& element, Vector2 minAnchor, Vector2 maxAnchor)
 {
 	const Vector2 size = maxAnchor - minAnchor;
-	element.size = RelativeSize{ size };
-	element.position = RelativePosition{ minAnchor + Vector2{ size.X() * element.GetPivot().X(), size.Y() * element.GetPivot().Y() } };
+	element.SetSizeRepresentation(RelativeSize{ size });
+	element.SetPositionRepresentation(RelativePosition{ minAnchor + Vector2{ size.X() * element.GetPivot().X(), size.Y() * element.GetPivot().Y() } });
 }
 
 SDL2pp::FRect GetRect(const UIFrame& frame, const UIElement& element)
@@ -375,21 +445,22 @@ int main()
 	SDL_Surface* testSurface = IMG_Load("Cards/syobontaya.png");
 
 	UIElement testElement;
-	testElement.position = RelativePosition{ { 0.5f, 0.5f } };
-	testElement.size = RelativeSize({ 0.8f, 0.8f });
+	testElement.SetPositionRepresentation(RelativePosition{ { 0.5f, 0.5f } });
+	testElement.SetSizeRepresentation(RelativeSize({ 0.8f, 0.8f }));
 	testElement.SetPivot({ 0.8f, 0.7f });
 	testElement.texture = engine.renderer.backend->CreateTexture(testSurface);
 	testElement.ownerFrame = &frame;
+	testElement.ConvertPositionRepresentation<StaticPosition>();
 	UIElement testElement2 = testElement;
-	testElement2.SetPivot({ 0.2f, 0.1f });
+	testElement2.SetPivot({ 0.0f, 0.0f });
 	//SetAnchors(testElement2, { 0.05f, 0.05f }, { 0.95f, 0.95f });
-	testElement2.size = BorderConstantRelativeSize({ 0.8f, 0.8f });
-	//testElement2.size = AspectRatioRelativeSize{ .ratio = 9.f / 16.f, .value = 0.2f };
-	//testElement2.position = RelativePosition{ { 0.5f, 0.5f } };
+	//testElement2.SetSizeRepresentation(BorderConstantRelativeSize({ 0.8f, 0.8f }));
+	testElement2.SetSizeRepresentation(AspectRatioRelativeSize{ .ratio = 9.f/ 16.f, .value = 0.5f });
+	testElement2.SetRelativePosition({ 0.0f, 0.0f });
 	//testElement2.position = StaticPosition{ { 500, 300 } };
 
 	//testElement2.SetPivot({ 0.8f, 0.7f });
-	testElement2.SetPivot({ 0.8f, 0.7f }, PivotChangePolicy::NoVisualChange);
+	//testElement2.SetPivot({ 0.8f, 0.7f }, PivotChangePolicy::NoVisualChange);
 	//testElement2.position = ConvertPivotEquivalentPosition(testElement.m_pivot, testElement2.m_pivot, testElement.position, testElement2.GetRelativeSizeToParent(), frame.size);
 	//testElement2.position = ConvertPivotEquivalentPosition(testElement2.m_pivot, testElement.m_pivot, testElement2.position, testElement2.GetRelativeSizeToParent(), frame.size);
 	//testElement2.pivot = testElement.pivot;
@@ -406,7 +477,7 @@ int main()
 
 	engine.renderer.backend->SetRenderTarget(nullptr);
 	mouseDebug.ownerFrame = &frame;
-	mouseDebug.size = StaticSize{ { 8, 8 } };
+	mouseDebug.SetSizeRepresentation(StaticSize{ { 8, 8 } });
 	mouseDebug.SetPivot({ 0.5f, 0.5f });
 	UIElement* hoveredElement = nullptr;
 	while(true)
