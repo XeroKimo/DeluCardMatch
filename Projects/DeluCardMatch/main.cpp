@@ -39,27 +39,14 @@ struct ApplicationTimer
 	}
 };
 
-template<class Ty>
-concept HasStaticSize = requires(Ty t, Vector2 parentSize)
-{
-	std::invoke(&Ty::GetStaticSize, t, parentSize);
-};
-
-template<class Ty>
-concept HasStaticPosition = requires(Ty t, Vector2 parentSize)
-{
-	std::invoke(&Ty::GetStaticPosition, t, parentSize);
-};
-
-
-	//Keeps the size of the element between all screen sizes
+//Keeps the size of the element between all screen sizes
 struct StaticSize
 {
 	Vector2 value;
 
-	static Vector2 GetStaticSize(const StaticSize& s, Vector2 parentSize) noexcept
+	static StaticSize GetStaticSize(const StaticSize& s, StaticSize parentSize) noexcept
 	{
-		return s.value;
+		return s;
 	}
 };
 
@@ -68,10 +55,22 @@ struct RelativeSize
 {
 	Vector2 value;
 
-	static Vector2 GetStaticSize(const RelativeSize& s, Vector2 parentSize) noexcept
+	static StaticSize GetStaticSize(const RelativeSize& s, StaticSize parentSize) noexcept
 	{
-		return { parentSize.X() * s.value.X(), parentSize.Y() * s.value.Y() };
+		return StaticSize{ { parentSize.value.X() * s.value.X(), parentSize.value.Y() * s.value.Y() } };
 	}
+};
+
+template<class Ty>
+concept HasStaticSize = requires(Ty t, StaticSize parentSize)
+{
+	std::invoke(&Ty::GetStaticSize, t, parentSize);
+};
+
+template<class Ty>
+concept HasStaticPosition = requires(Ty t, StaticSize parentSize)
+{
+	std::invoke(&Ty::GetStaticPosition, t, parentSize);
 };
 
 //Keeps the aspect ratio of the element constant between screen sizes
@@ -80,13 +79,13 @@ struct AspectRatioRelativeSize
 	float ratio;
 	float value;
 
-	static Vector2 GetStaticSize(const AspectRatioRelativeSize& s, Vector2 parentSize) noexcept
+	static StaticSize GetStaticSize(const AspectRatioRelativeSize& s, StaticSize parentSize) noexcept
 	{
-		const float parentRatio = parentSize.X() / parentSize.Y();
+		const float parentRatio = parentSize.value.X() / parentSize.value.Y();
 		const float parentToElementRatio = parentRatio / std::fabs(s.ratio);
 		return (s.ratio >= 0) ?
-			Vector2{ parentSize.X() * s.value, parentSize.Y() * s.value * parentToElementRatio } :
-			Vector2{ parentSize.X() * s.value / parentToElementRatio, parentSize.Y() * s.value };
+			StaticSize{{ parentSize.value.X() * s.value, parentSize.value.Y() * s.value * parentToElementRatio }} :
+			StaticSize{{ parentSize.value.X() * s.value / parentToElementRatio, parentSize.value.Y() * s.value }};
 	}
 };
 
@@ -95,19 +94,19 @@ struct BorderConstantRelativeSize
 {
 	Vector2 value;
 
-	static Vector2 GetStaticSize(const BorderConstantRelativeSize& s, Vector2 parentSize) noexcept
+	static StaticSize GetStaticSize(const BorderConstantRelativeSize& s, StaticSize parentSize) noexcept
 	{
-		if(parentSize.X() >= parentSize.Y())
+		if(parentSize.value.X() >= parentSize.value.Y())
 		{
-			const float baseSize = parentSize.X() - parentSize.Y();
-			const float remainingSize = parentSize.X() - baseSize;
-			return { baseSize + remainingSize * s.value.X(), parentSize.Y() * s.value.Y() };
+			const float baseSize = parentSize.value.X() - parentSize.value.Y();
+			const float remainingSize = parentSize.value.X() - baseSize;
+			return StaticSize{ { baseSize + remainingSize * s.value.X(), parentSize.value.Y() * s.value.Y() } };
 		}
 		else
 		{
-			const float baseSize = parentSize.Y() - parentSize.X();
-			const float remainingSize = parentSize.Y() - baseSize;
-			return { parentSize.X() * s.value.X(), baseSize + remainingSize * s.value.Y() };
+			const float baseSize = parentSize.value.Y() - parentSize.value.X();
+			const float remainingSize = parentSize.value.Y() - baseSize;
+			return StaticSize{ { parentSize.value.X() * s.value.X(), baseSize + remainingSize * s.value.Y() } };
 		}
 	}
 };
@@ -141,26 +140,6 @@ struct UIFrame
 	SDL2pp::unique_ptr<SDL2pp::Texture> internalTexture;
 };
 
-Vector2 StaticPositionToRelativePosition(Vector2 requestedPosition, Vector2 parentSize) noexcept
-{
-	return xk::Math::HadamardDivision(requestedPosition, parentSize);
-}
-
-Vector2 RelativePositionToStaticPosition(Vector2 requestedPosition, Vector2 parentSize) noexcept
-{
-	return xk::Math::HadamardProduct(requestedPosition, parentSize);
-}
-
-Vector2 StaticSizeToRelativeSize(Vector2 requestedSize, Vector2 parentSize)
-{
-	return { requestedSize.X() / parentSize.X(), requestedSize.Y() / parentSize.Y() };
-}
-
-Vector2 RelativeSizeToStaticSize(Vector2 requestedSize, Vector2 parentSize)
-{
-	return { requestedSize.X() * parentSize.X(), requestedSize.Y() * parentSize.Y() };
-}
-
 enum class PivotChangePolicy
 {
 	//The underlying position will not change, will result in appearing in a different position however
@@ -172,33 +151,6 @@ enum class PivotChangePolicy
 
 struct UIElement;
 
-Vector2 ConvertPivotEquivalentStaticPosition(Vector2 fromPivot, Vector2 toPivot, Vector2 fromStaticPosition, Vector2 elementRelativeSize, Vector2 parentSize) noexcept
-{
-	const Vector2 pivotDiff = toPivot - fromPivot;
-	const Vector2 offset = Vector2{ pivotDiff.X() * elementRelativeSize.X(), pivotDiff.Y() * elementRelativeSize.Y() };
-	return fromStaticPosition + RelativeSizeToStaticSize(offset, parentSize);
-}
-
-Vector2 ConvertPivotEquivalentRelativePosition(Vector2 fromPivot, Vector2 toPivot, Vector2 fromRelativePosition, Vector2 elementRelativeSize, Vector2 parentSize) noexcept
-{
-	const Vector2 pivotDiff = toPivot - fromPivot;
-	const Vector2 offset = Vector2{ pivotDiff.X() * elementRelativeSize.X(), pivotDiff.Y() * elementRelativeSize.Y() };
-	return fromRelativePosition + offset;
-}
-
-PositionVariant ConvertPivotEquivalentPosition(Vector2 fromPivot, Vector2 toPivot, PositionVariant fromPosition, Vector2 elementRelativeSize, Vector2 parentSize) noexcept
-{
-	static_assert(std::same_as<PositionVariant, std::variant<StaticPosition, RelativePosition>>, "Position variant changed, function requires changes");
-	if(auto* position = std::get_if<StaticPosition>(&fromPosition); position)
-	{
-		return StaticPosition{ ConvertPivotEquivalentStaticPosition(fromPivot, toPivot, position->value, elementRelativeSize, parentSize) };
-	}
-	else
-	{
-		return RelativePosition{ ConvertPivotEquivalentRelativePosition(fromPivot, toPivot, std::get<RelativePosition>(fromPosition).value, elementRelativeSize, parentSize) };
-	}
-}
-
 template<class T, class U> struct IsVariantMember;
 
 template<class T, class... Ts> 
@@ -208,6 +160,175 @@ struct IsVariantMember<T, std::variant<Ts...>> : std::bool_constant<(std::same_a
 
 template<class Ty, class VariantTy>
 concept VariantMember = (IsVariantMember<Ty, VariantTy>::value);
+
+template<VariantMember<PositionVariant> ToType, VariantMember<PositionVariant> FromType>
+ToType ConvertPositionRepresentation(const FromType& position, StaticSize parentStaticSize) = delete;
+
+template<>
+StaticPosition ConvertPositionRepresentation<StaticPosition, StaticPosition>(const StaticPosition& position, StaticSize parentStaticSize) noexcept
+{
+	return position;
+}
+
+template<>
+RelativePosition ConvertPositionRepresentation<RelativePosition, StaticPosition>(const StaticPosition& position, StaticSize parentStaticSize) noexcept
+{
+	return RelativePosition{ xk::Math::HadamardDivision(position.value, parentStaticSize.value) };
+}
+
+template<>
+StaticPosition ConvertPositionRepresentation<StaticPosition, RelativePosition>(const RelativePosition& position, StaticSize parentStaticSize) noexcept
+{
+	return StaticPosition{ xk::Math::HadamardProduct(position.value, parentStaticSize.value) };
+}
+
+template<>
+RelativePosition ConvertPositionRepresentation<RelativePosition, RelativePosition>(const RelativePosition& position, StaticSize parentStaticSize) noexcept
+{
+	return position;
+}
+
+template<VariantMember<SizeVariant> ToType, VariantMember<SizeVariant> FromType>
+ToType ConvertSizeRepresentation(const FromType& size, StaticSize parentStaticSize) = delete;
+
+template<>
+StaticSize ConvertSizeRepresentation<StaticSize, StaticSize>(const StaticSize& size, StaticSize parentStaticSize) noexcept
+{
+	return size;
+}
+
+template<>
+RelativeSize ConvertSizeRepresentation<RelativeSize, StaticSize>(const StaticSize& size, StaticSize parentStaticSize) noexcept
+{
+	return RelativeSize{ xk::Math::HadamardDivision(size.value, parentStaticSize.value) };
+}
+
+template<> 
+AspectRatioRelativeSize ConvertSizeRepresentation<AspectRatioRelativeSize, StaticSize>(const StaticSize& size, StaticSize parentStaticSize) noexcept
+{
+	return AspectRatioRelativeSize{ .ratio = size.value.X() / size.value.Y(), .value = size.value.X() / parentStaticSize.value.X() };
+}
+
+template<>
+BorderConstantRelativeSize ConvertSizeRepresentation<BorderConstantRelativeSize, StaticSize>(const StaticSize& size, StaticSize parentStaticSize) noexcept
+{
+	const Vector2 baseSize = [parentStaticSize] ()
+		{ 
+			const float min = std::min(parentStaticSize.value.X(), parentStaticSize.value.Y());
+			return Vector2{ min, min };
+		}();
+	const Vector2 variableSize = [parentStaticSize, baseSize] 
+		{ 
+			const float max = std::max(parentStaticSize.value.X(), parentStaticSize.value.Y());
+			return Vector2{ max, max } - baseSize;
+		}();
+
+	return BorderConstantRelativeSize{ xk::Math::HadamardDivision(size.value - baseSize, variableSize) };
+}
+
+template<>
+StaticSize ConvertSizeRepresentation<StaticSize, RelativeSize>(const RelativeSize& size, StaticSize parentStaticSize) noexcept
+{
+	return StaticSize{ RelativeSize::GetStaticSize(size, parentStaticSize) };
+}
+
+template<>
+RelativeSize ConvertSizeRepresentation<RelativeSize, RelativeSize>(const RelativeSize& size, StaticSize parentStaticSize) noexcept
+{
+	return size;
+}
+
+template<>
+AspectRatioRelativeSize ConvertSizeRepresentation<AspectRatioRelativeSize, RelativeSize>(const RelativeSize& size, StaticSize parentStaticSize) noexcept
+{
+	return ConvertSizeRepresentation<AspectRatioRelativeSize>(StaticSize{ RelativeSize::GetStaticSize(size, parentStaticSize) }, parentStaticSize);
+}
+
+template<>
+BorderConstantRelativeSize ConvertSizeRepresentation<BorderConstantRelativeSize, RelativeSize>(const RelativeSize& size, StaticSize parentStaticSize) noexcept
+{
+	return ConvertSizeRepresentation<BorderConstantRelativeSize>(StaticSize{ RelativeSize::GetStaticSize(size, parentStaticSize) }, parentStaticSize);
+}
+
+template<>
+StaticSize ConvertSizeRepresentation<StaticSize, AspectRatioRelativeSize>(const AspectRatioRelativeSize& size, StaticSize parentStaticSize) noexcept
+{
+	return StaticSize{ AspectRatioRelativeSize::GetStaticSize(size, parentStaticSize) };
+}
+
+template<>
+RelativeSize ConvertSizeRepresentation<RelativeSize, AspectRatioRelativeSize>(const AspectRatioRelativeSize& size, StaticSize parentStaticSize) noexcept
+{
+	const Vector2 staticSize = AspectRatioRelativeSize::GetStaticSize(size, parentStaticSize).value;
+	return RelativeSize{ xk::Math::HadamardDivision(staticSize, parentStaticSize.value) };
+}
+
+template<>
+AspectRatioRelativeSize ConvertSizeRepresentation<AspectRatioRelativeSize, AspectRatioRelativeSize>(const AspectRatioRelativeSize& size, StaticSize parentStaticSize) noexcept
+{
+	return size;
+}
+
+template<>
+BorderConstantRelativeSize ConvertSizeRepresentation<BorderConstantRelativeSize, AspectRatioRelativeSize>(const AspectRatioRelativeSize& size, StaticSize parentStaticSize) noexcept
+{
+	return ConvertSizeRepresentation<BorderConstantRelativeSize>(StaticSize{ AspectRatioRelativeSize::GetStaticSize(size, parentStaticSize) }, parentStaticSize);
+}
+
+template<>
+StaticSize ConvertSizeRepresentation<StaticSize, BorderConstantRelativeSize>(const BorderConstantRelativeSize& size, StaticSize parentStaticSize) noexcept
+{
+	return StaticSize{ BorderConstantRelativeSize::GetStaticSize(size, parentStaticSize) };
+}
+
+template<>
+RelativeSize ConvertSizeRepresentation<RelativeSize, BorderConstantRelativeSize>(const BorderConstantRelativeSize& size, StaticSize parentStaticSize) noexcept
+{
+	const Vector2 staticSize = BorderConstantRelativeSize::GetStaticSize(size, parentStaticSize).value;
+	return RelativeSize{ xk::Math::HadamardDivision(staticSize, parentStaticSize.value) };
+}
+
+template<>
+AspectRatioRelativeSize ConvertSizeRepresentation<AspectRatioRelativeSize, BorderConstantRelativeSize>(const BorderConstantRelativeSize& size, StaticSize parentStaticSize) noexcept
+{
+	return ConvertSizeRepresentation<AspectRatioRelativeSize>(StaticSize{ BorderConstantRelativeSize::GetStaticSize(size, parentStaticSize) }, parentStaticSize);
+}
+
+template<>
+BorderConstantRelativeSize ConvertSizeRepresentation<BorderConstantRelativeSize, BorderConstantRelativeSize>(const BorderConstantRelativeSize& size, StaticSize parentStaticSize) noexcept
+{
+	return size;
+}
+
+//Calculates an equivalent position that would not affect the visual position of an element between different pivots
+StaticPosition ConvertPivotEquivalentStaticPosition(Vector2 fromPivot, Vector2 toPivot, StaticPosition fromStaticPosition, RelativeSize elementRelativeSize, StaticSize parentSize) noexcept
+{
+	const Vector2 pivotDiff = toPivot - fromPivot;
+	const Vector2 offset = Vector2{ pivotDiff.X() * elementRelativeSize.value.X(), pivotDiff.Y() * elementRelativeSize.value.Y() };
+	return StaticPosition{ fromStaticPosition.value + ConvertSizeRepresentation<StaticSize>(RelativeSize{ offset }, parentSize).value };
+}
+
+//Calculates an equivalent position that would not affect the visual position of an element between different pivots
+RelativePosition ConvertPivotEquivalentRelativePosition(Vector2 fromPivot, Vector2 toPivot, RelativePosition fromRelativePosition, RelativeSize elementRelativeSize, StaticSize parentSize) noexcept
+{
+	const Vector2 pivotDiff = toPivot - fromPivot;
+	const Vector2 offset = Vector2{ pivotDiff.X() * elementRelativeSize.value.X(), pivotDiff.Y() * elementRelativeSize.value.Y() };
+	return RelativePosition{ fromRelativePosition.value + offset };
+}
+
+//Calculates an equivalent position that would not affect the visual position of an element between different pivots
+PositionVariant ConvertPivotEquivalentPosition(Vector2 fromPivot, Vector2 toPivot, PositionVariant fromPosition, RelativeSize elementRelativeSize, StaticSize parentSize) noexcept
+{
+	static_assert(std::same_as<PositionVariant, std::variant<StaticPosition, RelativePosition>>, "Position variant changed, function requires changes");
+	if(auto* position = std::get_if<StaticPosition>(&fromPosition); position)
+	{
+		return StaticPosition{ ConvertPivotEquivalentStaticPosition(fromPivot, toPivot, *position, elementRelativeSize, parentSize) };
+	}
+	else
+	{
+		return RelativePosition{ ConvertPivotEquivalentRelativePosition(fromPivot, toPivot, std::get<RelativePosition>(fromPosition), elementRelativeSize, parentSize) };
+	}
+}
 
 struct UIElement
 {
@@ -227,100 +348,61 @@ public:
 		return m_pivot;
 	}
 
-	Vector2 GetStaticSize() const noexcept
+	template<VariantMember<PositionVariant> Ty>
+	Ty GetFramePositionAs() const noexcept
 	{
-		return std::visit([this](const auto& val) -> Vector2
+		return std::visit([this](const auto& val) -> Ty
 			{
-				using Ty = std::remove_cvref_t<decltype(val)>;
-
-				static_assert(HasStaticSize<Ty>, "One of size representation does not contain a static size operation");
-
-				return std::invoke(&Ty::GetStaticSize, val, GetParentStaticSize());
-			}, m_size);
-	}
-
-	Vector2 GetRelativeSizeToParent() const noexcept
-	{
-		return StaticSizeToRelativeSize(GetStaticSize(), GetParentStaticSize());
-	}
-
-	Vector2 GetRelativeSizeToFrame() const noexcept
-	{
-		return StaticSizeToRelativeSize(GetStaticSize(), ownerFrame->size);
-	}
-
-	Vector2 GetStaticPosition() const noexcept
-	{
-		return std::visit([this](const auto& val) -> Vector2
-			{
-				using Ty = std::remove_cvref_t<decltype(val)>;
-
-				static_assert(HasStaticPosition<Ty>, "One of position representation does not contain a static position operation");
-
-				return std::invoke(&Ty::GetStaticPosition, val, GetParentStaticSize());
+				return ::ConvertPositionRepresentation<Ty>(StaticPosition{ GetParentFrameStaticPosition().value + GetLocalPositionAs<StaticPosition>().value }, StaticSize{ ownerFrame->size });
 			}, m_position);
 	}
 
-	Vector2 GetRelativePosition() const noexcept
+	template<VariantMember<SizeVariant> Ty>
+	Ty GetFrameSizeAs() const noexcept
 	{
-		return StaticPositionToRelativePosition(GetStaticPosition(), GetParentStaticSize());
+		return ::ConvertSizeRepresentation<Ty>(GetLocalSizeAs<StaticSize>(), StaticSize{ ownerFrame->size });
+	}
+
+	template<VariantMember<PositionVariant> Ty>
+	Ty GetLocalPositionAs() const noexcept
+	{
+		return std::visit([this](const auto& val) -> Ty
+			{
+				return ::ConvertPositionRepresentation<Ty>(val, GetParentStaticSize());
+			}, m_position);
+	}
+
+	template<VariantMember<SizeVariant> Ty>
+	Ty GetLocalSizeAs() const noexcept
+	{
+		return std::visit([this](const auto& val) -> Ty
+			{
+				return ::ConvertSizeRepresentation<Ty>(val, GetParentStaticSize());
+			}, m_size);
 	}
 
 	template<VariantMember<PositionVariant> Ty>
 	void ConvertPositionRepresentation() noexcept
 	{
 		static_assert(std::same_as<PositionVariant, std::variant<StaticPosition, RelativePosition>>, "Position variant changed");
-		if constexpr(std::same_as<Ty, StaticPosition>)
-		{
-			if(auto internalPos = std::get_if<RelativePosition>(&m_position); internalPos)
-			{
-				m_position = StaticPosition{ RelativePositionToStaticPosition(internalPos->value, GetParentStaticSize()) };
-			}
-		}
-		else if constexpr(std::same_as<Ty, RelativePosition>)
-		{
-			if(auto internalPos = std::get_if<StaticPosition>(&m_position); internalPos)
-			{
-				m_position = RelativePosition{ StaticPositionToRelativePosition(internalPos->value, GetParentStaticSize()) };
-			}
-		}
+
+		m_position = GetLocalPositionAs<Ty>();
 	}
 
 	template<VariantMember<SizeVariant> Ty>
-	void ConvertSizeRepresentation()
+	void ConvertSizeRepresentation() noexcept
 	{
-		if constexpr(std::same_as<Ty, StaticSize>)
-		{
-			m_size = StaticSize{ GetStaticSize() };
-		}
-		else if constexpr(std::same_as<Ty, RelativeSize>)
-		{
-			m_size = RelativeSize{ GetRelativeSizeToParent() };
-		}
-		else if constexpr(std::same_as<Ty, AspectRatioRelativeSize>)
-		{
-			const Vector2 staticSize = GetStaticSize();
-			const Vector2 parentSize = GetParentSize();
-			m_size = AspectRatioRelativeSize{ .ratio = staticSize.X() / staticSize.Y(), staticSize.X() / parentSize.X() };
-		}
-		else if constexpr(std::same_as<Ty, BorderConstantRelativeSize>)
-		{
-			const Vector2 parentSize = GetParentStaticSize();
-			const Vector2 baseSize = Vector2{ std::min(parentSize.X(), parentSize.Y())};
-			const Vector2 variableSize = Vector2{ std::max(parentSize.X(), parentSize.Y()) };
-			
-			m_size = BorderConstantRelativeSize{ xk::Math::HadamardDivision(GetStaticSize() - baseSize, variableSize) };
-		}
+		m_size = GetLocalSizeAs<Ty>();
 	}
 
 	template<VariantMember<PositionVariant> Ty>
-	void SetPositionRepresentation(Ty val)
+	void SetPositionRepresentation(Ty val) noexcept
 	{
 		m_position = val;
 	}
 
 	template<VariantMember<SizeVariant> Ty>
-	void SetSizeRepresentation(Ty val)
+	void SetSizeRepresentation(Ty val) noexcept
 	{
 		m_size = val;
 	}
@@ -336,7 +418,7 @@ public:
 		}
 		case PivotChangePolicy::NoVisualChange:
 		{
-			m_position = ConvertPivotEquivalentPosition(m_pivot, pivot, m_position, GetRelativeSizeToParent(), GetParentStaticSize());
+			m_position = ConvertPivotEquivalentPosition(m_pivot, pivot, m_position, GetLocalSizeAs<RelativeSize>(), GetParentStaticSize());
 			m_pivot = pivot;
 			break;
 		}
@@ -347,31 +429,32 @@ public:
 
 	void SetStaticPosition(Vector2 newPos) noexcept
 	{
-		if(auto* internalPos = std::get_if<StaticPosition>(&m_position); internalPos)
-		{
-			internalPos->value = newPos;
-		}
-		else if(auto* internalPos = std::get_if<RelativePosition>(&m_position); internalPos)
-		{
-			internalPos->value = StaticPositionToRelativePosition(newPos, GetParentStaticSize());
-		}
+		std::visit([this, newPos](auto& position)
+			{
+				using Ty = std::remove_reference_t<decltype(position)>;
+				position.value = ::ConvertPositionRepresentation<Ty>(StaticPosition{ newPos }, GetParentStaticSize()).value;
+			}, m_position);
 	}
 
 	void SetRelativePosition(Vector2 newPos) noexcept
 	{
-		if(auto* internalPos = std::get_if<StaticPosition>(&m_position); internalPos)
-		{
-			internalPos->value = RelativePositionToStaticPosition(newPos, GetParentStaticSize());;
-		}
-		else if(auto* internalPos = std::get_if<RelativePosition>(&m_position); internalPos)
-		{
-			internalPos->value = newPos;
-		}
+		std::visit([this, newPos](auto& position)
+			{
+				using Ty = std::remove_reference_t<decltype(position)>;
+				position.value = ::ConvertPositionRepresentation<Ty>(RelativePosition{ newPos }, GetParentStaticSize()).value;
+			}, m_position);
 	}
 
-	Vector2 GetParentStaticSize() const noexcept
+	StaticSize GetParentStaticSize() const noexcept
 	{
-		return ownerFrame->size;
+		return StaticSize{ ownerFrame->size };
+	}
+
+	StaticPosition GetParentFrameStaticPosition() const noexcept
+	{
+		Vector2 accumulator;
+
+		return StaticPosition{ accumulator };
 	}
 };
 
@@ -385,12 +468,12 @@ void SetAnchors(UIElement& element, Vector2 minAnchor, Vector2 maxAnchor)
 SDL2pp::FRect GetRect(const UIFrame& frame, const UIElement& element)
 {
 	SDL2pp::FRect rect;
-	const Vector2 size = element.GetStaticSize();
+	const Vector2 size = element.GetFrameSizeAs<StaticSize>().value;
 	const Vector2 pivotPositionOffset = { element.GetPivot().X() * -size.X(), (1 - element.GetPivot().Y()) * -size.Y() };
 	const Vector2 sdl2YFlip = { 0, frame.size.Y() };
 	const Vector2 position = [&frame, &element]() -> Vector2
 		{
-			return { frame.size.X() * element.GetRelativePosition().X(), frame.size.Y() * -element.GetRelativePosition().Y() };
+			return { frame.size.X() * element.GetFramePositionAs<RelativePosition>().value.X(), frame.size.Y() * -element.GetFramePositionAs<RelativePosition>().value.Y() };
 
 		}() + pivotPositionOffset + sdl2YFlip;
 
@@ -403,8 +486,8 @@ SDL2pp::FRect GetRect(const UIFrame& frame, const UIElement& element)
 
 bool IsOverlapping(Vector2 mousePos, const UIElement& element, const UIFrame& frame)
 {
-	auto size = element.GetRelativeSizeToFrame();
-	auto minPos = ConvertPivotEquivalentRelativePosition(element.GetPivot(), { 0, 0 }, element.GetRelativePosition(), element.GetRelativeSizeToFrame(), frame.size);
+	auto size = element.GetFrameSizeAs<RelativeSize>().value;
+	auto minPos = ConvertPivotEquivalentRelativePosition(element.GetPivot(), { 0, 0 }, element.GetFramePositionAs<RelativePosition>(), element.GetFrameSizeAs<RelativeSize>(), StaticSize{ frame.size }).value;
 	return mousePos.X() >= minPos.X() && mousePos.X() <= minPos.X() + size.X() &&
 		mousePos.Y() >= minPos.Y() && mousePos.Y() <= minPos.Y() + size.Y();
 }
@@ -451,12 +534,14 @@ int main()
 	testElement.texture = engine.renderer.backend->CreateTexture(testSurface);
 	testElement.ownerFrame = &frame;
 	testElement.ConvertPositionRepresentation<StaticPosition>();
+	testElement.ConvertSizeRepresentation<StaticSize>();
+	testElement.ConvertSizeRepresentation<RelativeSize>();
 	UIElement testElement2 = testElement;
 	testElement2.SetPivot({ 0.0f, 0.0f });
 	//SetAnchors(testElement2, { 0.05f, 0.05f }, { 0.95f, 0.95f });
 	//testElement2.SetSizeRepresentation(BorderConstantRelativeSize({ 0.8f, 0.8f }));
 	testElement2.SetSizeRepresentation(AspectRatioRelativeSize{ .ratio = 9.f/ 16.f, .value = 0.5f });
-	testElement2.SetRelativePosition({ 0.0f, 0.0f });
+	testElement2.SetStaticPosition({ 950.33f, 0.0f });
 	//testElement2.position = StaticPosition{ { 500, 300 } };
 
 	//testElement2.SetPivot({ 0.8f, 0.7f });
@@ -551,12 +636,13 @@ int main()
 				engine.renderer.backend->CopyEx(mouseDebug.texture.get(), std::nullopt, GetRect(frame, mouseDebug), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
 
 				hoveredElement = nullptr;
-				if(IsOverlapping(mouseDebug.GetRelativePosition(), testElement, frame))
+
+				if(IsOverlapping(mouseDebug.GetFramePositionAs<RelativePosition>().value, testElement, frame))
 				{
 					hoveredElement = &testElement;
 					//std::cout << "Overlapping first element\n";
 				}
-				if(IsOverlapping(mouseDebug.GetRelativePosition(), testElement2, frame))
+				if(IsOverlapping(mouseDebug.GetFramePositionAs<RelativePosition>().value, testElement2, frame))
 				{
 					hoveredElement = &testElement2;
 					//std::cout << "Overlapping second element\n";
