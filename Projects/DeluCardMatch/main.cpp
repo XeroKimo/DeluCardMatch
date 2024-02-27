@@ -134,10 +134,11 @@ struct RelativePosition
 using PositionVariant = std::variant<StaticPosition, RelativePosition>;
 using SizeVariant = std::variant<StaticSize, RelativeSize, AspectRatioRelativeSize, BorderConstantRelativeSize>;
 
-struct UIFrame
+class UIFrame
 {
-	Vector2 size;
+public:
 	SDL2pp::unique_ptr<SDL2pp::Texture> internalTexture;
+	Vector2 GetSize() const noexcept { return internalTexture->GetSize(); }
 };
 
 enum class PivotChangePolicy
@@ -333,9 +334,8 @@ PositionVariant ConvertPivotEquivalentPosition(Vector2 fromPivot, Vector2 toPivo
 struct UIElement
 {
 
-	UIFrame* ownerFrame;
-
 private:
+	UIFrame* m_ownerFrame;
 	PositionVariant m_position;
 	SizeVariant m_size;
 	Vector2 m_pivot;
@@ -343,6 +343,14 @@ private:
 public:
 	SDL2pp::shared_ptr<SDL2pp::Texture> texture;
 
+public:
+	UIElement(UIFrame& ownerFrame) :
+		m_ownerFrame{ &ownerFrame }
+	{
+
+	}
+
+public:
 	Vector2 GetPivot() const noexcept
 	{
 		return m_pivot;
@@ -353,14 +361,14 @@ public:
 	{
 		return std::visit([this](const auto& val) -> Ty
 			{
-				return ::ConvertPositionRepresentation<Ty>(StaticPosition{ GetParentFrameStaticPosition().value + GetLocalPositionAs<StaticPosition>().value }, StaticSize{ ownerFrame->size });
+				return ::ConvertPositionRepresentation<Ty>(StaticPosition{ GetParentFrameStaticPosition().value + GetLocalPositionAs<StaticPosition>().value }, StaticSize{ m_ownerFrame->GetSize() });
 			}, m_position);
 	}
 
 	template<VariantMember<SizeVariant> Ty>
 	Ty GetFrameSizeAs() const noexcept
 	{
-		return ::ConvertSizeRepresentation<Ty>(GetLocalSizeAs<StaticSize>(), StaticSize{ ownerFrame->size });
+		return ::ConvertSizeRepresentation<Ty>(GetLocalSizeAs<StaticSize>(), StaticSize{ m_ownerFrame->GetSize() });
 	}
 
 	template<VariantMember<PositionVariant> Ty>
@@ -393,6 +401,26 @@ public:
 	void ConvertSizeRepresentation() noexcept
 	{
 		m_size = GetLocalSizeAs<Ty>();
+	}
+
+	template<VariantMember<PositionVariant> Ty>
+	void SetLocalPosition(Ty val) noexcept
+	{
+		m_position = std::visit([this, &val](const auto& innerVal)
+			{
+				using Inner_Ty = std::remove_cvref_t<decltype(innerVal)>;
+				return ::ConvertPositionRepresentation<Inner_Ty>(val, GetParentStaticSize());
+			}, m_position);
+	}
+
+	template<VariantMember<SizeVariant> Ty>
+	void SetLocalSize(Ty val) noexcept
+	{
+		m_size = std::visit([this, &val](const auto& innerVal)
+			{
+				using Inner_Ty = std::remove_cvref_t<decltype(innerVal)>;
+				return ::ConvertSizeRepresentation<Inner_Ty>(val, GetParentStaticSize());
+			}, m_size);
 	}
 
 	template<VariantMember<PositionVariant> Ty>
@@ -447,7 +475,7 @@ public:
 
 	StaticSize GetParentStaticSize() const noexcept
 	{
-		return StaticSize{ ownerFrame->size };
+		return StaticSize{ m_ownerFrame->GetSize() };
 	}
 
 	StaticPosition GetParentFrameStaticPosition() const noexcept
@@ -456,6 +484,8 @@ public:
 
 		return StaticPosition{ accumulator };
 	}
+
+	const UIFrame& GetFrame() const { return *m_ownerFrame; }
 };
 
 void SetAnchors(UIElement& element, Vector2 minAnchor, Vector2 maxAnchor)
@@ -465,17 +495,13 @@ void SetAnchors(UIElement& element, Vector2 minAnchor, Vector2 maxAnchor)
 	element.SetPositionRepresentation(RelativePosition{ minAnchor + Vector2{ size.X() * element.GetPivot().X(), size.Y() * element.GetPivot().Y() } });
 }
 
-SDL2pp::FRect GetRect(const UIFrame& frame, const UIElement& element)
+SDL2pp::FRect GetRect(const UIElement& element)
 {
 	SDL2pp::FRect rect;
 	const Vector2 size = element.GetFrameSizeAs<StaticSize>().value;
 	const Vector2 pivotPositionOffset = { element.GetPivot().X() * -size.X(), (1 - element.GetPivot().Y()) * -size.Y() };
-	const Vector2 sdl2YFlip = { 0, frame.size.Y() };
-	const Vector2 position = [&frame, &element]() -> Vector2
-		{
-			return { frame.size.X() * element.GetFramePositionAs<RelativePosition>().value.X(), frame.size.Y() * -element.GetFramePositionAs<RelativePosition>().value.Y() };
-
-		}() + pivotPositionOffset + sdl2YFlip;
+	const Vector2 sdl2YFlip = { 0, element.GetFrame().GetSize().Y() };
+	const Vector2 position = xk::Math::HadamardProduct(element.GetFramePositionAs<StaticPosition>().value, Vector2 { 1, -1 }) + pivotPositionOffset + sdl2YFlip;
 
 		rect.x = position.X();
 		rect.y = position.Y();
@@ -484,10 +510,10 @@ SDL2pp::FRect GetRect(const UIFrame& frame, const UIElement& element)
 		return rect;
 }
 
-bool IsOverlapping(Vector2 mousePos, const UIElement& element, const UIFrame& frame)
+bool IsOverlapping(Vector2 mousePos, const UIElement& element)
 {
 	auto size = element.GetFrameSizeAs<RelativeSize>().value;
-	auto minPos = ConvertPivotEquivalentRelativePosition(element.GetPivot(), { 0, 0 }, element.GetFramePositionAs<RelativePosition>(), element.GetFrameSizeAs<RelativeSize>(), StaticSize{ frame.size }).value;
+	auto minPos = ConvertPivotEquivalentRelativePosition(element.GetPivot(), { 0, 0 }, element.GetFramePositionAs<RelativePosition>(), element.GetFrameSizeAs<RelativeSize>(), StaticSize{ element.GetFrame().GetSize() }).value;
 	return mousePos.X() >= minPos.X() && mousePos.X() <= minPos.X() + size.X() &&
 		mousePos.Y() >= minPos.Y() && mousePos.Y() <= minPos.Y() + size.Y();
 }
@@ -513,11 +539,11 @@ int main()
 		});
 	std::chrono::duration<float> physicsAccumulator{ 0.f };
 
-	UIFrame frame{ { 1600, 900} };
+	UIFrame frame;
 	frame.internalTexture = engine.renderer.backend->CreateTexture(
 		SDL_PIXELFORMAT_RGBA32,
 		SDL2pp::TextureAccess(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET),
-		frame.size.X(), frame.size.Y());
+		1600, 900);
 	frame.internalTexture->SetBlendMode(SDL_BLENDMODE_BLEND);
 
 	TTF_Font* testFont = TTF_OpenFont("Arial.ttf", 12);
@@ -527,12 +553,11 @@ int main()
 	SDL_Texture* testFontTexture = SDL_CreateTextureFromSurface(engine.renderer.backend.get(), testFontSurface);
 	SDL_Surface* testSurface = IMG_Load("Cards/syobontaya.png");
 
-	UIElement testElement;
+	UIElement testElement{ frame };
 	testElement.SetPositionRepresentation(RelativePosition{ { 0.5f, 0.5f } });
 	testElement.SetSizeRepresentation(RelativeSize({ 0.8f, 0.8f }));
 	testElement.SetPivot({ 0.8f, 0.7f });
 	testElement.texture = engine.renderer.backend->CreateTexture(testSurface);
-	testElement.ownerFrame = &frame;
 	testElement.ConvertPositionRepresentation<StaticPosition>();
 	testElement.ConvertSizeRepresentation<StaticSize>();
 	testElement.ConvertSizeRepresentation<RelativeSize>();
@@ -551,7 +576,7 @@ int main()
 	//testElement2.pivot = testElement.pivot;
 	std::chrono::duration<float> accumulator{ 0 };
 
-	UIElement mouseDebug;
+	UIElement mouseDebug{ frame };
 	{
 		mouseDebug.texture = engine.renderer.backend->CreateTexture(SDL_PIXELFORMAT_RGBA32, static_cast<SDL2pp::TextureAccess>(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET), 8, 8);
 	};
@@ -561,7 +586,6 @@ int main()
 	engine.renderer.backend->Clear();
 
 	engine.renderer.backend->SetRenderTarget(nullptr);
-	mouseDebug.ownerFrame = &frame;
 	mouseDebug.SetSizeRepresentation(StaticSize{ { 8, 8 } });
 	mouseDebug.SetPivot({ 0.5f, 0.5f });
 	UIElement* hoveredElement = nullptr;
@@ -631,18 +655,18 @@ int main()
 				SDL_Rect textLocation = { 400, 200, testFontSurface->w, testFontSurface->h };
 				engine.renderer.backend->Copy(testFontTexture, std::nullopt, textLocation);
 
-				engine.renderer.backend->CopyEx(testElement.texture.get(), std::nullopt, GetRect(frame, testElement), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
-				engine.renderer.backend->CopyEx(testElement2.texture.get(), std::nullopt, GetRect(frame, testElement2), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
-				engine.renderer.backend->CopyEx(mouseDebug.texture.get(), std::nullopt, GetRect(frame, mouseDebug), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+				engine.renderer.backend->CopyEx(testElement.texture.get(), std::nullopt, GetRect( testElement), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+				engine.renderer.backend->CopyEx(testElement2.texture.get(), std::nullopt, GetRect( testElement2), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+				engine.renderer.backend->CopyEx(mouseDebug.texture.get(), std::nullopt, GetRect( mouseDebug), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
 
 				hoveredElement = nullptr;
 
-				if(IsOverlapping(mouseDebug.GetFramePositionAs<RelativePosition>().value, testElement, frame))
+				if(IsOverlapping(mouseDebug.GetFramePositionAs<RelativePosition>().value, testElement))
 				{
 					hoveredElement = &testElement;
 					//std::cout << "Overlapping first element\n";
 				}
-				if(IsOverlapping(mouseDebug.GetFramePositionAs<RelativePosition>().value, testElement2, frame))
+				if(IsOverlapping(mouseDebug.GetFramePositionAs<RelativePosition>().value, testElement2))
 				{
 					hoveredElement = &testElement2;
 					//std::cout << "Overlapping second element\n";
