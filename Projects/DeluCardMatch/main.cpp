@@ -442,6 +442,18 @@ public:
 			}, m_size);
 	}
 
+	template<VariantMember<PositionVariant> Ty>
+	void SetFramePosition(Ty val) noexcept
+	{
+		std::visit([this, &val](auto& innerVal)
+			{
+				using Inner_Ty = std::remove_cvref_t<decltype(innerVal)>;
+				StaticPosition parentPosition = (parent) ? parent->GetPivotedFramePositionAs<StaticPosition>() : StaticPosition{};
+				StaticPosition requestedPosition = ::ConvertPositionRepresentation<StaticPosition>(val, StaticSize{ m_ownerFrame->GetSize() });
+				innerVal = ::ConvertPositionRepresentation<Inner_Ty>(StaticPosition{ requestedPosition.value - parentPosition.value }, GetParentStaticSize());
+			}, m_position);
+	}
+
 	template<VariantMember<SizeVariant> Ty>
 	void SetFrameSize(Ty val) noexcept
 	{
@@ -571,7 +583,7 @@ int main()
 	UIElement testElement{ frame };
 	testElement.SetPositionRepresentation(RelativePosition{ { 0.0f, 0.5f } });
 	testElement.SetSizeRepresentation(RelativeSize({ 0.5f, 0.5f }));
-	testElement.SetPivot({ 0.0f, 0.5f });
+	testElement.SetPivot({ 0.5f, 0.5f });
 	testElement.texture = engine.renderer.backend->CreateTexture(testSurface);
 	testElement.ConvertPositionRepresentation<StaticPosition>();
 	testElement.ConvertSizeRepresentation<StaticSize>();
@@ -597,6 +609,7 @@ int main()
 	testElement3.SetPivot({ 0.5f, 0.5f });
 	testElement3.SetPositionRepresentation(RelativePosition{ { 0.5f, 0.5f } });
 	testElement3.SetFrameSize(RelativeSize{ {0.5f, 0.5f} });
+	testElement3.SetFramePosition(RelativePosition{ { 0.f, 0.5f } });
 
 	std::chrono::duration<float> accumulator{ 0 };
 
@@ -655,6 +668,7 @@ int main()
 					//testElement.SetPivot({ testElement.GetPivot().X(), (std::sin(accumulator.count()) + 1) / 2 });
 					//testElement.SetLocalPosition(RelativePosition{ { testElement.GetLocalPositionAs<RelativePosition>().value.X(), (std::sin(accumulator.count()) + 1) / 2 } });
 					testElement.SetLocalPosition(RelativePosition{ { (std::sin(accumulator.count()) + 1) / 2, testElement.GetLocalPositionAs<RelativePosition>().value.Y() } });
+					testElement3.SetFramePosition(RelativePosition{ { 0.5f, (std::sin(accumulator.count()) + 1) / 2 } });
 					//testElement2.SetPivot({ testElement.GetPivot().X(), (std::sin(accumulator.count()) + 1) / 2 });
 					//std::cout << testElement.GetPivot().Y() << "\n";
 					std::chrono::duration<float> deltaTime = std::chrono::duration_cast<std::chrono::duration<float>>(dt);
