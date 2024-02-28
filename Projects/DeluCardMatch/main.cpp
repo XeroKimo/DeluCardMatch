@@ -342,7 +342,7 @@ private:
 
 public:
 	SDL2pp::shared_ptr<SDL2pp::Texture> texture;
-
+	UIElement* parent = nullptr;
 public:
 	UIElement(UIFrame& ownerFrame) :
 		m_ownerFrame{ &ownerFrame }
@@ -357,11 +357,30 @@ public:
 	}
 
 	template<VariantMember<PositionVariant> Ty>
+	Ty GetPivotOffset() const noexcept
+	{
+		const Vector2 size = GetFrameSizeAs<StaticSize>().value;
+		const Vector2 pivotOffset = { GetPivot().X() * -size.X(), GetPivot().Y() * -size.Y() };
+		return ::ConvertPositionRepresentation<Ty>(StaticPosition{ pivotOffset }, StaticSize{ m_ownerFrame->GetSize() });
+	}
+
+	template<VariantMember<PositionVariant> Ty>
+	Ty GetPivotedFramePositionAs() const noexcept
+	{
+		return std::visit([this](const auto& val) -> Ty
+			{
+				const Vector2 size = GetFrameSizeAs<StaticSize>().value;
+				const Vector2 pivotOffset = { GetPivot().X() * -size.X(), GetPivot().Y() * -size.Y() };
+				return ::ConvertPositionRepresentation<Ty>(StaticPosition{ GetLocalPositionAs<StaticPosition>().value + GetParentPivotedFrameStaticPosition().value + pivotOffset }, StaticSize{ m_ownerFrame->GetSize() });
+			}, m_position);
+	}
+
+	template<VariantMember<PositionVariant> Ty>
 	Ty GetFramePositionAs() const noexcept
 	{
 		return std::visit([this](const auto& val) -> Ty
 			{
-				return ::ConvertPositionRepresentation<Ty>(StaticPosition{ GetParentFrameStaticPosition().value + GetLocalPositionAs<StaticPosition>().value }, StaticSize{ m_ownerFrame->GetSize() });
+				return ::ConvertPositionRepresentation<Ty>(StaticPosition{ GetLocalPositionAs<StaticPosition>().value + GetParentFrameStaticPosition().value }, StaticSize{ m_ownerFrame->GetSize() });
 			}, m_position);
 	}
 
@@ -406,20 +425,20 @@ public:
 	template<VariantMember<PositionVariant> Ty>
 	void SetLocalPosition(Ty val) noexcept
 	{
-		m_position = std::visit([this, &val](const auto& innerVal)
+		std::visit([this, &val](auto& innerVal)
 			{
 				using Inner_Ty = std::remove_cvref_t<decltype(innerVal)>;
-				return ::ConvertPositionRepresentation<Inner_Ty>(val, GetParentStaticSize());
+				innerVal = ::ConvertPositionRepresentation<Inner_Ty>(val, GetParentStaticSize());
 			}, m_position);
 	}
 
 	template<VariantMember<SizeVariant> Ty>
 	void SetLocalSize(Ty val) noexcept
 	{
-		m_size = std::visit([this, &val](const auto& innerVal)
+		std::visit([this, &val](auto& innerVal)
 			{
 				using Inner_Ty = std::remove_cvref_t<decltype(innerVal)>;
-				return ::ConvertSizeRepresentation<Inner_Ty>(val, GetParentStaticSize());
+				innerVal = ::ConvertSizeRepresentation<Inner_Ty>(val, GetParentStaticSize());
 			}, m_size);
 	}
 
@@ -455,34 +474,19 @@ public:
 		}
 	}
 
-	void SetStaticPosition(Vector2 newPos) noexcept
-	{
-		std::visit([this, newPos](auto& position)
-			{
-				using Ty = std::remove_reference_t<decltype(position)>;
-				position.value = ::ConvertPositionRepresentation<Ty>(StaticPosition{ newPos }, GetParentStaticSize()).value;
-			}, m_position);
-	}
-
-	void SetRelativePosition(Vector2 newPos) noexcept
-	{
-		std::visit([this, newPos](auto& position)
-			{
-				using Ty = std::remove_reference_t<decltype(position)>;
-				position.value = ::ConvertPositionRepresentation<Ty>(RelativePosition{ newPos }, GetParentStaticSize()).value;
-			}, m_position);
-	}
-
 	StaticSize GetParentStaticSize() const noexcept
 	{
-		return StaticSize{ m_ownerFrame->GetSize() };
+		return parent ? parent->GetFrameSizeAs<StaticSize>() : StaticSize{ m_ownerFrame->GetSize() };
 	}
 
 	StaticPosition GetParentFrameStaticPosition() const noexcept
 	{
-		Vector2 accumulator;
+		return parent ? parent->GetFramePositionAs<StaticPosition>() : StaticPosition{};
+	}
 
-		return StaticPosition{ accumulator };
+	StaticPosition GetParentPivotedFrameStaticPosition() const noexcept
+	{
+		return parent ? parent->GetPivotedFramePositionAs<StaticPosition>() : StaticPosition{};
 	}
 
 	const UIFrame& GetFrame() const { return *m_ownerFrame; }
@@ -499,9 +503,9 @@ SDL2pp::FRect GetRect(const UIElement& element)
 {
 	SDL2pp::FRect rect;
 	const Vector2 size = element.GetFrameSizeAs<StaticSize>().value;
-	const Vector2 pivotPositionOffset = { element.GetPivot().X() * -size.X(), (1 - element.GetPivot().Y()) * -size.Y() };
-	const Vector2 sdl2YFlip = { 0, element.GetFrame().GetSize().Y() };
-	const Vector2 position = xk::Math::HadamardProduct(element.GetFramePositionAs<StaticPosition>().value, Vector2 { 1, -1 }) + pivotPositionOffset + sdl2YFlip;
+	const Vector2 pivotOffsetFlip = { 0, size.Y() };
+	const Vector2 sdl2YFlip = { 0, element.GetFrame().GetSize().Y()  };
+	const Vector2 position = xk::Math::HadamardProduct(element.GetPivotedFramePositionAs<StaticPosition>().value + pivotOffsetFlip, Vector2{ 1, -1 }) + sdl2YFlip;
 
 		rect.x = position.X();
 		rect.y = position.Y();
@@ -554,19 +558,21 @@ int main()
 	SDL_Surface* testSurface = IMG_Load("Cards/syobontaya.png");
 
 	UIElement testElement{ frame };
-	testElement.SetPositionRepresentation(RelativePosition{ { 0.5f, 0.5f } });
-	testElement.SetSizeRepresentation(RelativeSize({ 0.8f, 0.8f }));
-	testElement.SetPivot({ 0.8f, 0.7f });
+	testElement.SetPositionRepresentation(RelativePosition{ { 0.0f, 0.0f } });
+	testElement.SetSizeRepresentation(RelativeSize({ 0.5f, 0.5f }));
+	testElement.SetPivot({ 0.0f, 0.0f });
 	testElement.texture = engine.renderer.backend->CreateTexture(testSurface);
 	testElement.ConvertPositionRepresentation<StaticPosition>();
 	testElement.ConvertSizeRepresentation<StaticSize>();
 	testElement.ConvertSizeRepresentation<RelativeSize>();
 	UIElement testElement2 = testElement;
-	testElement2.SetPivot({ 0.0f, 0.0f });
+	testElement2.parent = &testElement;
+	testElement2.SetPivot({ 0.5f, 0.5f });
 	//SetAnchors(testElement2, { 0.05f, 0.05f }, { 0.95f, 0.95f });
 	//testElement2.SetSizeRepresentation(BorderConstantRelativeSize({ 0.8f, 0.8f }));
+	testElement2.SetLocalPosition(RelativePosition{ { 0.5f, 0.5f } });
 	testElement2.SetSizeRepresentation(AspectRatioRelativeSize{ .ratio = 9.f/ 16.f, .value = 0.5f });
-	testElement2.SetStaticPosition({ 950.33f, 0.0f });
+	//testElement2.SetStaticPosition({ 950.33f, 0.0f });
 	//testElement2.position = StaticPosition{ { 500, 300 } };
 
 	//testElement2.SetPivot({ 0.8f, 0.7f });
@@ -574,6 +580,11 @@ int main()
 	//testElement2.position = ConvertPivotEquivalentPosition(testElement.m_pivot, testElement2.m_pivot, testElement.position, testElement2.GetRelativeSizeToParent(), frame.size);
 	//testElement2.position = ConvertPivotEquivalentPosition(testElement2.m_pivot, testElement.m_pivot, testElement2.position, testElement2.GetRelativeSizeToParent(), frame.size);
 	//testElement2.pivot = testElement.pivot;
+
+	UIElement testElement3 = testElement;
+	testElement3.parent = &testElement2;
+	testElement3.SetPositionRepresentation(RelativePosition{ { 1.0f, 1.0f } });
+
 	std::chrono::duration<float> accumulator{ 0 };
 
 	UIElement mouseDebug{ frame };
@@ -600,7 +611,7 @@ int main()
 			}
 			if(event.type == SDL2pp::EventType::SDL_MOUSEMOTION)
 			{
-				mouseDebug.SetRelativePosition(xk::Math::HadamardDivision(Vector2{ event.motion.x, engine.renderer.backend->GetOutputSize().Y() - event.motion.y }, engine.renderer.backend->GetOutputSize()));
+				mouseDebug.SetLocalPosition(RelativePosition{ xk::Math::HadamardDivision(Vector2{ event.motion.x, engine.renderer.backend->GetOutputSize().Y() - event.motion.y }, engine.renderer.backend->GetOutputSize()) });
 				//mouseDebug.position.value = ;
 				//std::cout << mouseDebug.position.value.X() << ", " << mouseDebug.position.value.Y() << "\n";
 				//mouseDebug.position.value.X() /= static_cast<float>(engine.renderer.backend->GetOutputSize().X());
@@ -628,8 +639,11 @@ int main()
 			timer.Tick([&](std::chrono::nanoseconds dt)
 				{
 					//testElement.position.Y() = testElement.size.Y() * std::sin(accumulator.count());
-					testElement.SetPivot({ testElement.GetPivot().X(), (std::sin(accumulator.count()) + 1) / 2 });
-					//std::cout << testElement.pivot.Y() << "\n";
+					//testElement.SetPivot({ testElement.GetPivot().X(), (std::sin(accumulator.count()) + 1) / 2 });
+					//testElement.SetLocalPosition(RelativePosition{ { testElement.GetLocalPositionAs<RelativePosition>().value.X(), (std::sin(accumulator.count()) + 1) / 2 } });
+					testElement.SetLocalPosition(RelativePosition{ { (std::sin(accumulator.count()) + 1) / 2, testElement.GetLocalPositionAs<RelativePosition>().value.Y() } });
+					//testElement2.SetPivot({ testElement.GetPivot().X(), (std::sin(accumulator.count()) + 1) / 2 });
+					//std::cout << testElement.GetPivot().Y() << "\n";
 					std::chrono::duration<float> deltaTime = std::chrono::duration_cast<std::chrono::duration<float>>(dt);
 					static constexpr std::chrono::duration<float> physicsStep{ 1.f / 60.f };
 					physicsAccumulator += deltaTime;
@@ -657,6 +671,7 @@ int main()
 
 				engine.renderer.backend->CopyEx(testElement.texture.get(), std::nullopt, GetRect( testElement), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
 				engine.renderer.backend->CopyEx(testElement2.texture.get(), std::nullopt, GetRect( testElement2), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+				engine.renderer.backend->CopyEx(testElement3.texture.get(), std::nullopt, GetRect( testElement3), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
 				engine.renderer.backend->CopyEx(mouseDebug.texture.get(), std::nullopt, GetRect( mouseDebug), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
 
 				hoveredElement = nullptr;
