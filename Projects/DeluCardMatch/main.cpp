@@ -442,6 +442,17 @@ public:
 			}, m_size);
 	}
 
+	template<VariantMember<SizeVariant> Ty>
+	void SetFrameSize(Ty val) noexcept
+	{
+		std::visit([this, &val](auto& innerVal)
+			{
+				using Inner_Ty = std::remove_cvref_t<decltype(innerVal)>;
+				StaticSize requestedStaticSize = ::ConvertSizeRepresentation<StaticSize>(val, StaticSize{ m_ownerFrame->GetSize() });
+				innerVal = ::ConvertSizeRepresentation<Inner_Ty>(requestedStaticSize, GetParentStaticSize());
+			}, m_size);
+	}
+
 	template<VariantMember<PositionVariant> Ty>
 	void SetPositionRepresentation(Ty val) noexcept
 	{
@@ -558,9 +569,9 @@ int main()
 	SDL_Surface* testSurface = IMG_Load("Cards/syobontaya.png");
 
 	UIElement testElement{ frame };
-	testElement.SetPositionRepresentation(RelativePosition{ { 0.0f, 0.0f } });
+	testElement.SetPositionRepresentation(RelativePosition{ { 0.0f, 0.5f } });
 	testElement.SetSizeRepresentation(RelativeSize({ 0.5f, 0.5f }));
-	testElement.SetPivot({ 0.0f, 0.0f });
+	testElement.SetPivot({ 0.0f, 0.5f });
 	testElement.texture = engine.renderer.backend->CreateTexture(testSurface);
 	testElement.ConvertPositionRepresentation<StaticPosition>();
 	testElement.ConvertSizeRepresentation<StaticSize>();
@@ -583,7 +594,9 @@ int main()
 
 	UIElement testElement3 = testElement;
 	testElement3.parent = &testElement2;
-	testElement3.SetPositionRepresentation(RelativePosition{ { 1.0f, 1.0f } });
+	testElement3.SetPivot({ 0.5f, 0.5f });
+	testElement3.SetPositionRepresentation(RelativePosition{ { 0.5f, 0.5f } });
+	testElement3.SetFrameSize(RelativeSize{ {0.5f, 0.5f} });
 
 	std::chrono::duration<float> accumulator{ 0 };
 
