@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Algorithms.ixx" />
     <ClCompile Include="Angles.ixx" />
     <ClCompile Include="CatumullRomSpline.ixx" />
     <ClCompile Include="Color.ixx" />

@@ -438,10 +438,7 @@ namespace xk::Math
 	export template<class Ty, size_t ElementCount>
 	constexpr Ty Magnitude(const Vector<Ty, ElementCount>& v)
 	{
-		return std::sqrt(std::accumulate(v.begin(), v.end(), static_cast<Ty>(0), [](Ty total, Ty val)
-			{
-				return total + val * val;
-			}));
+		return std::sqrt(MagnitudeSquared(v));
 	}
 
 	export template<class Ty, size_t ElementCount>

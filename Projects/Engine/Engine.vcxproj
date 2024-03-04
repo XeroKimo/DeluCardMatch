@@ -25,6 +25,8 @@
     <ClCompile Include="ECS.ixx" />
     <ClCompile Include="Engine.ixx" />
     <ClCompile Include="EngineAware.ixx" />
+    <ClCompile Include="GUI.cpp" />
+    <ClCompile Include="GUI.ixx" />
     <ClCompile Include="Physics.cpp" />
     <ClCompile Include="Physics.ixx" />
     <ClCompile Include="Renderer.ixx" />
