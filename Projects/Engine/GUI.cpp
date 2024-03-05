@@ -7,34 +7,59 @@ namespace DeluEngine::GUI
 {
 	void UIElement::SetParent(UIElement* newParent, UIReparentLogic logic)
 	{
-		auto reparent = [this, newParent]
+		auto reparent = [this, newParent]()
+		{
+			auto updateRootElements = [this, oldParent = m_parent, newParent]()
 			{
-				if(m_parent)
-				{
-					std::erase(m_parent->m_children, this);
-				}
-
 				try
 				{
-					if(newParent)
+					if(!newParent)
 					{
-						newParent->m_children.push_back(this);
+						m_ownerFrame->m_rootElements.push_back(this);
 					}
-
-					m_parent = newParent;
+					else if(!oldParent && newParent)
+					{
+						std::erase(m_ownerFrame->m_rootElements, this);
+					}
 				}
 				catch(...)
 				{
-					m_parent->m_children.push_back(this);
+					if(!newParent)
+					{
+						std::erase(m_ownerFrame->m_rootElements, this);
+					}
+					else if(!oldParent && newParent)
+					{
+						m_ownerFrame->m_rootElements.push_back(this);
+					}
 				}
 			};
+			if(m_parent)
+			{
+				std::erase(m_parent->m_children, this);
+			}
+
+			try
+			{
+				if(newParent)
+				{
+					newParent->m_children.push_back(this);
+				}
+				updateRootElements();
+				m_parent = newParent;
+			}
+			catch(...)
+			{
+				m_parent->m_children.push_back(this);
+			}
+		};
 
 		switch(logic)
 		{
-		case UIReparentLogic::KeepStaticTransform:
+		case UIReparentLogic::KeepAbsoluteTransform:
 		{
-			StaticSize oldSize = GetFrameSizeAs<StaticSize>();
-			StaticPosition oldPosition = GetFramePositionAs<StaticPosition>();
+			AbsoluteSize oldSize = GetFrameSizeAs<AbsoluteSize>();
+			AbsolutePosition oldPosition = GetFramePositionAs<AbsolutePosition>();
 
 			reparent();
 

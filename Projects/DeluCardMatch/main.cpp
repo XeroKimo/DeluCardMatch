@@ -39,10 +39,10 @@ void SetAnchors(DeluEngine::GUI::UIElement& element, Vector2 minAnchor, Vector2 
 SDL2pp::FRect GetRect(const DeluEngine::GUI::UIElement& element)
 {
 	SDL2pp::FRect rect;
-	const Vector2 size = element.GetFrameSizeAs<DeluEngine::GUI::StaticSize>().value;
+	const Vector2 size = element.GetFrameSizeAs<DeluEngine::GUI::AbsoluteSize>().value;
 	const Vector2 pivotOffsetFlip = { 0, size.Y() };
 	const Vector2 sdl2YFlip = { 0, element.GetFrame().GetSize().Y()  };
-	const Vector2 position = xk::Math::HadamardProduct(element.GetPivotedFramePositionAs<DeluEngine::GUI::StaticPosition>().value + pivotOffsetFlip, Vector2{ 1, -1 }) + sdl2YFlip;
+	const Vector2 position = xk::Math::HadamardProduct(element.GetPivotedFramePositionAs<DeluEngine::GUI::AbsolutePosition>().value + pivotOffsetFlip, Vector2{ 1, -1 }) + sdl2YFlip;
 
 		rect.x = position.X();
 		rect.y = position.Y();
@@ -54,7 +54,7 @@ SDL2pp::FRect GetRect(const DeluEngine::GUI::UIElement& element)
 bool IsOverlapping(Vector2 mousePos, const DeluEngine::GUI::UIElement& element)
 {
 	auto size = element.GetFrameSizeAs<DeluEngine::GUI::RelativeSize>().value;
-	auto minPos = element.GetPivotedFramePositionAs<DeluEngine::GUI::RelativePosition>().value;//DeluEngine::GUI::ConvertPivotEquivalentRelativePosition(element.GetPivot(), { 0, 0 }, element.GetFramePositionAs<DeluEngine::GUI::RelativePosition>(), element.GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), DeluEngine::GUI::StaticSize{ element.GetFrame().GetSize() }).value;
+	auto minPos = element.GetPivotedFramePositionAs<DeluEngine::GUI::RelativePosition>().value;//DeluEngine::GUI::ConvertPivotEquivalentRelativePosition(element.GetPivot(), { 0, 0 }, element.GetFramePositionAs<DeluEngine::GUI::RelativePosition>(), element.GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), DeluEngine::GUI::AbsoluteSize{ element.GetFrame().GetSize() }).value;
 	return mousePos.X() >= minPos.X() && mousePos.X() <= minPos.X() + size.X() &&
 		mousePos.Y() >= minPos.Y() && mousePos.Y() <= minPos.Y() + size.Y();
 }
@@ -94,60 +94,64 @@ int main()
 	SDL_Texture* testFontTexture = SDL_CreateTextureFromSurface(engine.renderer.backend.get(), testFontSurface);
 	SDL_Surface* testSurface = IMG_Load("Cards/syobontaya.png");
 
-	DeluEngine::GUI::UIElement testElement{ frame };
-	testElement.SetPositionRepresentation(DeluEngine::GUI::RelativePosition{ { 0.0f, 0.5f } });
-	testElement.SetSizeRepresentation(DeluEngine::GUI::RelativeSize({ 0.5f, 0.5f }));
-	testElement.SetPivot({ 0.5f, 0.5f });
-	testElement.texture = engine.renderer.backend->CreateTexture(testSurface);
-	testElement.ConvertUnderlyingPositionRepresentation<DeluEngine::GUI::StaticPosition>();
-	testElement.ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::StaticSize>();
-	testElement.ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::RelativeSize>();
-	DeluEngine::GUI::UIElement testElement2 = testElement;
-	testElement2.SetPivot({ 0.5f, 0.5f });
+	std::unique_ptr<DeluEngine::GUI::UIElement> testElement = frame.NewElement({}, {}, {}, nullptr);
+	testElement->SetPositionRepresentation(DeluEngine::GUI::RelativePosition{ { 0.0f, 0.5f } });
+	testElement->SetSizeRepresentation(DeluEngine::GUI::RelativeSize({ 0.5f, 0.5f }));
+	testElement->SetPivot({ 0.5f, 0.5f });
+	testElement->texture = engine.renderer.backend->CreateTexture(testSurface);
+	testElement->ConvertUnderlyingPositionRepresentation<DeluEngine::GUI::AbsolutePosition>();
+	testElement->ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::AbsoluteSize>();
+	testElement->ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::RelativeSize>();
+	std::unique_ptr<DeluEngine::GUI::UIElement> testElement2 = frame.NewElement(testElement->GetFramePositionAs<DeluEngine::GUI::RelativePosition>(), testElement->GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement->GetPivot(), nullptr);
+	testElement2->texture = testElement->texture;
+	testElement2->SetPivot({ 0.5f, 0.5f });
 	//SetAnchors(testElement2, { 0.05f, 0.05f }, { 0.95f, 0.95f });
-	//testElement2.SetSizeRepresentation(BorderConstantRelativeSize({ 0.8f, 0.8f }));
-	testElement2.SetLocalPosition(DeluEngine::GUI::RelativePosition{ { 0.85f, 0.5f } });
-	testElement2.SetSizeRepresentation(DeluEngine::GUI::AspectRatioRelativeSize{ .ratio = -9.f/ 16.f, .value = 0.5f });
-	testElement2.SetParent(&testElement, DeluEngine::GUI::UIReparentLogic::KeepStaticTransform);
-	//testElement2.SetLocalPosition(DeluEngine::GUI::ConvertPivotEquivalentRelativePosition(testElement2.GetPivot(), { 0, 0 }, testElement2.GetLocalPositionAs<DeluEngine::GUI::RelativePosition>(), testElement2.GetLocalSizeAs<DeluEngine::GUI::RelativeSize>(), testElement2.GetParentStaticSize()));
+	//testElement2->SetSizeRepresentation(BorderConstantRelativeSize({ 0.8f, 0.8f }));
+	testElement2->SetLocalPosition(DeluEngine::GUI::RelativePosition{ { 0.85f, 0.5f } });
+	testElement2->SetSizeRepresentation(DeluEngine::GUI::AspectRatioRelativeSize{ .ratio = -9.f/ 16.f, .value = 0.5f });
+	testElement2->SetParent(testElement.get(), DeluEngine::GUI::UIReparentLogic::KeepAbsoluteTransform);
+	//testElement2->SetLocalPosition(DeluEngine::GUI::ConvertPivotEquivalentRelativePosition(testElement2->GetPivot(), { 0, 0 }, testElement2->GetLocalPositionAs<DeluEngine::GUI::RelativePosition>(), testElement2->GetLocalSizeAs<DeluEngine::GUI::RelativeSize>(), testElement2->GetParentAbsoluteSize()));
 
-	//testElement2.SetPivot({ 0.0f, 0.0f });
-	//testElement2.SetFramePosition(DeluEngine::GUI::ConvertPivotEquivalentRelativePosition(testElement2.GetPivot(), { 0, 0 }, DeluEngine::GUI::RelativePosition{ testElement2.GetPivotedFramePositionAs<DeluEngine::GUI::RelativePosition>().value - testElement2.GetPivotOffset<DeluEngine::GUI::RelativePosition>().value }, testElement2.GetLocalSizeAs<DeluEngine::GUI::RelativeSize>(), DeluEngine::GUI::StaticSize{ testElement2.GetFrame().GetSize() }));
-	//testElement2.SetFramePosition(DeluEngine::GUI::ConvertPivotEquivalentRelativePosition(testElement2.GetPivot(), { 0, 0 }, DeluEngine::GUI::RelativePosition{ testElement2.GetFramePositionAs<DeluEngine::GUI::RelativePosition>().value + testElement2.GetPivotOffset<DeluEngine::GUI::RelativePosition>().value }, testElement2.GetLocalSizeAs<DeluEngine::GUI::RelativeSize>(), DeluEngine::GUI::StaticSize{ testElement2.GetFrame().GetSize() }));
-	//testElement2.SetFramePosition(DeluEngine::GUI::ConvertPivotEquivalentRelativePosition(testElement2.GetPivot(), { 0, 0 }, DeluEngine::GUI::RelativePosition{ testElement2.GetFramePositionAs<DeluEngine::GUI::RelativePosition>().value + testElement2.GetPivotOffset<DeluEngine::GUI::RelativePosition>().value }, testElement2.GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement2.GetParentStaticSize()));
-	testElement2.SetFramePosition(DeluEngine::GUI::ConvertPivotEquivalentRelativePosition(testElement2.GetPivot(), { 0, 0 }, testElement2.GetFramePositionAs<DeluEngine::GUI::RelativePosition>(), testElement2.GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement2.GetParentStaticSize()));
+	//testElement2->SetPivot({ 0.0f, 0.0f });
+	//testElement2->SetFramePosition(DeluEngine::GUI::ConvertPivotEquivalentRelativePosition(testElement2->GetPivot(), { 0, 0 }, DeluEngine::GUI::RelativePosition{ testElement2->GetPivotedFramePositionAs<DeluEngine::GUI::RelativePosition>().value - testElement2->GetPivotOffset<DeluEngine::GUI::RelativePosition>().value }, testElement2->GetLocalSizeAs<DeluEngine::GUI::RelativeSize>(), DeluEngine::GUI::AbsoluteSize{ testElement2->GetFrame().GetSize() }));
+	//testElement2->SetFramePosition(DeluEngine::GUI::ConvertPivotEquivalentRelativePosition(testElement2->GetPivot(), { 0, 0 }, DeluEngine::GUI::RelativePosition{ testElement2->GetFramePositionAs<DeluEngine::GUI::RelativePosition>().value + testElement2->GetPivotOffset<DeluEngine::GUI::RelativePosition>().value }, testElement2->GetLocalSizeAs<DeluEngine::GUI::RelativeSize>(), DeluEngine::GUI::AbsoluteSize{ testElement2->GetFrame().GetSize() }));
+	//testElement2->SetFramePosition(DeluEngine::GUI::ConvertPivotEquivalentRelativePosition(testElement2->GetPivot(), { 0, 0 }, DeluEngine::GUI::RelativePosition{ testElement2->GetFramePositionAs<DeluEngine::GUI::RelativePosition>().value + testElement2->GetPivotOffset<DeluEngine::GUI::RelativePosition>().value }, testElement2->GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement2->GetParentAbsoluteSize()));
+	testElement2->SetFramePosition(DeluEngine::GUI::ConvertPivotEquivalentRelativePosition(testElement2->GetPivot(), { 0, 0 }, testElement2->GetFramePositionAs<DeluEngine::GUI::RelativePosition>(), testElement2->GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement2->GetParentAbsoluteSize()));
 
-	testElement2.SetPivot({ 0.0f, 0.0f });
-	//testElement2.SetStaticPosition({ 950.33f, 0.0f });
-	//testElement2.position = DeluEngine::GUI::StaticPosition{ { 500, 300 } };
+	testElement2->SetPivot({ 0.0f, 0.0f });
+	//testElement2->SetAbsolutePosition({ 950.33f, 0.0f });
+	//testElement2->position = DeluEngine::GUI::AbsolutePosition{ { 500, 300 } };
 
-	//testElement2.SetPivot({ 0.8f, 0.7f });
-	//testElement2.SetPivot({ 0.8f, 0.7f }, PivotChangePolicy::NoVisualChange);
-	//testElement2.position = ConvertPivotEquivalentPosition(testElement.m_pivot, testElement2.m_pivot, testElement.position, testElement2.GetRelativeSizeToParent(), frame.size);
-	//testElement2.position = ConvertPivotEquivalentPosition(testElement2.m_pivot, testElement.m_pivot, testElement2.position, testElement2.GetRelativeSizeToParent(), frame.size);
-	//testElement2.pivot = testElement.pivot;
+	//testElement2->SetPivot({ 0.8f, 0.7f });
+	//testElement2->SetPivot({ 0.8f, 0.7f }, PivotChangePolicy::NoVisualChange);
+	//testElement2->position = ConvertPivotEquivalentPosition(testElement->m_pivot, testElement2->m_pivot, testElement->position, testElement2->GetRelativeSizeToParent(), frame.size);
+	//testElement2->position = ConvertPivotEquivalentPosition(testElement2->m_pivot, testElement->m_pivot, testElement2->position, testElement2->GetRelativeSizeToParent(), frame.size);
+	//testElement2->pivot = testElement->pivot;
 
-	DeluEngine::GUI::UIElement testElement3 = testElement;
-	testElement3.SetParent(&testElement2);
-	testElement3.SetPivot({ 0.5f, 0.5f });
-	testElement3.SetPositionRepresentation(DeluEngine::GUI::RelativePosition{ { 0.5f, 0.5f } });
-	testElement3.SetFrameSize(DeluEngine::GUI::RelativeSize{ {0.5f, 0.5f} });
-	testElement3.SetFramePosition(DeluEngine::GUI::RelativePosition{ { 0.5f, 0.5f } });
+	std::unique_ptr<DeluEngine::GUI::UIElement> testElement3 = frame.NewElement(testElement->GetFramePositionAs<DeluEngine::GUI::RelativePosition>(), testElement->GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement->GetPivot(), testElement2.get());
+	testElement3->texture = testElement->texture; 
+	//testElement3->SetParent(testElement2.get());
+	testElement3->SetPivot({ 0.5f, 0.5f });
+	testElement3->SetPositionRepresentation(DeluEngine::GUI::RelativePosition{ { 0.5f, 0.5f } });
+	//testElement3->SetFrameSize(DeluEngine::GUI::RelativeSize{ {0.5f, 0.5f} });
+	//testElement3->SetFramePosition(DeluEngine::GUI::RelativePosition{ { 0.5f, 0.5f } });
+	testElement3->SetLocalSize(DeluEngine::GUI::RelativeSize{ {0.5f, 0.5f} });
+	testElement3->SetLocalPosition(DeluEngine::GUI::RelativePosition{ { 0.5f, 0.5f } });
 
 	std::chrono::duration<float> accumulator{ 0 };
 
-	DeluEngine::GUI::UIElement mouseDebug{ frame };
+	std::unique_ptr<DeluEngine::GUI::UIElement> mouseDebug = frame.NewElement({}, {}, {}, nullptr);
 	{
-		mouseDebug.texture = engine.renderer.backend->CreateTexture(SDL_PIXELFORMAT_RGBA32, static_cast<SDL2pp::TextureAccess>(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET), 8, 8);
+		mouseDebug->texture = engine.renderer.backend->CreateTexture(SDL_PIXELFORMAT_RGBA32, static_cast<SDL2pp::TextureAccess>(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET), 8, 8);
 	};
-	engine.renderer.backend->SetRenderTarget(mouseDebug.texture.get());
+	engine.renderer.backend->SetRenderTarget(mouseDebug->texture.get());
 	engine.renderer.backend->SetDrawColor(SDL2pp::Color{ 255, 0, 0, 255 });
 
 	engine.renderer.backend->Clear();
 
 	engine.renderer.backend->SetRenderTarget(nullptr);
-	mouseDebug.SetSizeRepresentation(DeluEngine::GUI::StaticSize{ { 8, 8 } });
-	mouseDebug.SetPivot({ 0.5f, 0.5f });
+	mouseDebug->SetSizeRepresentation(DeluEngine::GUI::AbsoluteSize{ { 8, 8 } });
+	mouseDebug->SetPivot({ 0.5f, 0.5f });
 	DeluEngine::GUI::UIElement* hoveredElement = nullptr;
 	while(true)
 	{
@@ -160,11 +164,11 @@ int main()
 			}
 			if(event.type == SDL2pp::EventType::SDL_MOUSEMOTION)
 			{
-				mouseDebug.SetLocalPosition(DeluEngine::GUI::RelativePosition{ xk::Math::HadamardDivision(Vector2{ event.motion.x, engine.renderer.backend->GetOutputSize().Y() - event.motion.y }, engine.renderer.backend->GetOutputSize()) });
-				//mouseDebug.position.value = ;
-				//std::cout << mouseDebug.position.value.X() << ", " << mouseDebug.position.value.Y() << "\n";
-				//mouseDebug.position.value.X() /= static_cast<float>(engine.renderer.backend->GetOutputSize().X());
-				//mouseDebug.position.value.Y() /= static_cast<float>(engine.renderer.backend->GetOutputSize().Y());
+				mouseDebug->SetLocalPosition(DeluEngine::GUI::RelativePosition{ xk::Math::HadamardDivision(Vector2{ event.motion.x, engine.renderer.backend->GetOutputSize().Y() - event.motion.y }, engine.renderer.backend->GetOutputSize()) });
+				//mouseDebug->position.value = ;
+				//std::cout << mouseDebug->position.value.X() << ", " << mouseDebug->position.value.Y() << "\n";
+				//mouseDebug->position.value.X() /= static_cast<float>(engine.renderer.backend->GetOutputSize().X());
+				//mouseDebug->position.value.Y() /= static_cast<float>(engine.renderer.backend->GetOutputSize().Y());
 			}
 			if(event.type == SDL2pp::EventType::SDL_MOUSEBUTTONDOWN)
 			{
@@ -187,13 +191,13 @@ int main()
 			engine.controllerContext.Execute(engine.controller);
 			timer.Tick([&](std::chrono::nanoseconds dt)
 				{
-					//testElement.position.Y() = testElement.size.Y() * std::sin(accumulator.count());
-					//testElement.SetPivot({ testElement.GetPivot().X(), (std::sin(accumulator.count()) + 1) / 2 });
-					//testElement.SetLocalPosition(DeluEngine::GUI::RelativePosition{ { testElement.GetLocalPositionAs<DeluEngine::GUI::RelativePosition>().value.X(), (std::sin(accumulator.count()) + 1) / 2 } });
-					//testElement.SetLocalPosition(DeluEngine::GUI::RelativePosition{ { (std::sin(accumulator.count()) + 1) / 2, testElement.GetLocalPositionAs<DeluEngine::GUI::RelativePosition>().value.Y() } });
-					testElement3.SetFramePosition(DeluEngine::GUI::RelativePosition{ { 0.5f, (std::sin(accumulator.count()) + 1) / 2 } });
-					//testElement2.SetPivot({ testElement.GetPivot().X(), (std::sin(accumulator.count()) + 1) / 2 });
-					//std::cout << testElement.GetPivot().Y() << "\n";
+					//testElement->position.Y() = testElement->size.Y() * std::sin(accumulator.count());
+					//testElement->SetPivot({ testElement->GetPivot().X(), (std::sin(accumulator.count()) + 1) / 2 });
+					//testElement->SetLocalPosition(DeluEngine::GUI::RelativePosition{ { testElement->GetLocalPositionAs<DeluEngine::GUI::RelativePosition>().value.X(), (std::sin(accumulator.count()) + 1) / 2 } });
+					testElement->SetLocalPosition(DeluEngine::GUI::RelativePosition{ { (std::sin(accumulator.count()) + 1) / 2, testElement->GetLocalPositionAs<DeluEngine::GUI::RelativePosition>().value.Y() } });
+					//testElement3->SetFramePosition(DeluEngine::GUI::RelativePosition{ { 0.5f, (std::sin(accumulator.count()) + 1) / 2 } });
+					//testElement2->SetPivot({ testElement->GetPivot().X(), (std::sin(accumulator.count()) + 1) / 2 });
+					//std::cout << testElement->GetPivot().Y() << "\n";
 					std::chrono::duration<float> deltaTime = std::chrono::duration_cast<std::chrono::duration<float>>(dt);
 					static constexpr std::chrono::duration<float> physicsStep{ 1.f / 60.f };
 					physicsAccumulator += deltaTime;
@@ -219,21 +223,21 @@ int main()
 				SDL_Rect textLocation = { 400, 200, testFontSurface->w, testFontSurface->h };
 				engine.renderer.backend->Copy(testFontTexture, std::nullopt, textLocation);
 
-				engine.renderer.backend->CopyEx(testElement.texture.get(), std::nullopt, GetRect( testElement), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
-				engine.renderer.backend->CopyEx(testElement2.texture.get(), std::nullopt, GetRect( testElement2), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
-				engine.renderer.backend->CopyEx(testElement3.texture.get(), std::nullopt, GetRect( testElement3), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
-				engine.renderer.backend->CopyEx(mouseDebug.texture.get(), std::nullopt, GetRect( mouseDebug), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+				engine.renderer.backend->CopyEx(testElement->texture.get(), std::nullopt, GetRect(*testElement), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+				engine.renderer.backend->CopyEx(testElement2->texture.get(), std::nullopt, GetRect(*testElement2), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+				engine.renderer.backend->CopyEx(testElement3->texture.get(), std::nullopt, GetRect(*testElement3), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+				engine.renderer.backend->CopyEx(mouseDebug->texture.get(), std::nullopt, GetRect(*mouseDebug), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
 
 				hoveredElement = nullptr;
 
-				if(IsOverlapping(mouseDebug.GetFramePositionAs<DeluEngine::GUI::RelativePosition>().value, testElement))
+				if(IsOverlapping(mouseDebug->GetFramePositionAs<DeluEngine::GUI::RelativePosition>().value, *testElement))
 				{
-					hoveredElement = &testElement;
+					hoveredElement = testElement.get();
 					//std::cout << "Overlapping first element\n";
 				}
-				if(IsOverlapping(mouseDebug.GetFramePositionAs<DeluEngine::GUI::RelativePosition>().value, testElement2))
+				if(IsOverlapping(mouseDebug->GetFramePositionAs<DeluEngine::GUI::RelativePosition>().value, *testElement2))
 				{
-					hoveredElement = &testElement2;
+					hoveredElement = testElement2.get();
 					//std::cout << "Overlapping second element\n";
 				}
 				engine.renderer.backend->SetRenderTarget(nullptr);

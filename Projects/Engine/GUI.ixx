@@ -5,6 +5,7 @@ module;
 #include <algorithm>
 #include <utility>
 #include <vector>
+#include <memory>
 
 export module DeluEngine:GUI;
 import xk.Math.Matrix;
@@ -14,8 +15,19 @@ import SDL2pp;
 namespace DeluEngine::GUI
 {
 	using namespace xk::Math::Aliases;
+
+	export struct AbsolutePosition
+	{
+		Vector2 value;
+	};
+
+	export struct RelativePosition
+	{
+		Vector2 value;
+	};
+
 	//Keeps the size of the element between all screen sizes
-	export struct StaticSize
+	export struct AbsoluteSize
 	{
 		Vector2 value;
 	};
@@ -39,18 +51,8 @@ namespace DeluEngine::GUI
 		Vector2 value;
 	};
 
-	export struct StaticPosition
-	{
-		Vector2 value;
-	};
-
-	export struct RelativePosition
-	{
-		Vector2 value;
-	};
-
-	export using PositionVariant = std::variant<StaticPosition, RelativePosition>;
-	export using SizeVariant = std::variant<StaticSize, RelativeSize, AspectRatioRelativeSize, BorderConstantRelativeSize>;
+	export using PositionVariant = std::variant<AbsolutePosition, RelativePosition>;
+	export using SizeVariant = std::variant<AbsoluteSize, RelativeSize, AspectRatioRelativeSize, BorderConstantRelativeSize>;
 
 	template<class T, class U> struct IsVariantMember;
 
@@ -63,55 +65,55 @@ namespace DeluEngine::GUI
 	concept VariantMember = (IsVariantMember<Ty, VariantTy>::value);
 
 	export template<VariantMember<PositionVariant> ToType, VariantMember<PositionVariant> FromType>
-	ToType ConvertPositionRepresentation(const FromType& position, StaticSize parentSize) = delete;
+	ToType ConvertPositionRepresentation(const FromType& position, AbsoluteSize parentSize) = delete;
 
 	template<>
-	StaticPosition ConvertPositionRepresentation<StaticPosition, StaticPosition>(const StaticPosition& position, StaticSize parentSize) noexcept
+	AbsolutePosition ConvertPositionRepresentation<AbsolutePosition, AbsolutePosition>(const AbsolutePosition& position, AbsoluteSize parentSize) noexcept
 	{
 		return position;
 	}
 
 	template<>
-	RelativePosition ConvertPositionRepresentation<RelativePosition, StaticPosition>(const StaticPosition& position, StaticSize parentSize) noexcept
+	RelativePosition ConvertPositionRepresentation<RelativePosition, AbsolutePosition>(const AbsolutePosition& position, AbsoluteSize parentSize) noexcept
 	{
 		return RelativePosition{ xk::Math::HadamardDivision(position.value, parentSize.value) };
 	}
 
 	template<>
-	StaticPosition ConvertPositionRepresentation<StaticPosition, RelativePosition>(const RelativePosition& position, StaticSize parentSize) noexcept
+	AbsolutePosition ConvertPositionRepresentation<AbsolutePosition, RelativePosition>(const RelativePosition& position, AbsoluteSize parentSize) noexcept
 	{
-		return StaticPosition{ xk::Math::HadamardProduct(position.value, parentSize.value) };
+		return AbsolutePosition{ xk::Math::HadamardProduct(position.value, parentSize.value) };
 	}
 
 	template<>
-	RelativePosition ConvertPositionRepresentation<RelativePosition, RelativePosition>(const RelativePosition& position, StaticSize parentSize) noexcept
+	RelativePosition ConvertPositionRepresentation<RelativePosition, RelativePosition>(const RelativePosition& position, AbsoluteSize parentSize) noexcept
 	{
 		return position;
 	}
 
 	export template<VariantMember<SizeVariant> ToType, VariantMember<SizeVariant> FromType>
-	ToType ConvertSizeRepresentation(const FromType& size, StaticSize parentSize) = delete;
+	ToType ConvertSizeRepresentation(const FromType& size, AbsoluteSize parentSize) = delete;
 
 	template<>
-	StaticSize ConvertSizeRepresentation<StaticSize, StaticSize>(const StaticSize& size, StaticSize parentSize) noexcept
+	AbsoluteSize ConvertSizeRepresentation<AbsoluteSize, AbsoluteSize>(const AbsoluteSize& size, AbsoluteSize parentSize) noexcept
 	{
 		return size;
 	}
 
 	template<>
-	RelativeSize ConvertSizeRepresentation<RelativeSize, StaticSize>(const StaticSize& size, StaticSize parentSize) noexcept
+	RelativeSize ConvertSizeRepresentation<RelativeSize, AbsoluteSize>(const AbsoluteSize& size, AbsoluteSize parentSize) noexcept
 	{
 		return RelativeSize{ xk::Math::HadamardDivision(size.value, parentSize.value) };
 	}
 
 	template<>
-	AspectRatioRelativeSize ConvertSizeRepresentation<AspectRatioRelativeSize, StaticSize>(const StaticSize& size, StaticSize parentSize) noexcept
+	AspectRatioRelativeSize ConvertSizeRepresentation<AspectRatioRelativeSize, AbsoluteSize>(const AbsoluteSize& size, AbsoluteSize parentSize) noexcept
 	{
 		return AspectRatioRelativeSize{ .ratio = size.value.X() / size.value.Y(), .value = size.value.X() / parentSize.value.X() };
 	}
 
 	template<>
-	BorderConstantRelativeSize ConvertSizeRepresentation<BorderConstantRelativeSize, StaticSize>(const StaticSize& size, StaticSize parentSize) noexcept
+	BorderConstantRelativeSize ConvertSizeRepresentation<BorderConstantRelativeSize, AbsoluteSize>(const AbsoluteSize& size, AbsoluteSize parentSize) noexcept
 	{
 		const auto [baseSize, variableSize] = [parentSize]()
 		{
@@ -123,104 +125,104 @@ namespace DeluEngine::GUI
 	}
 
 	template<>
-	StaticSize ConvertSizeRepresentation<StaticSize, RelativeSize>(const RelativeSize& size, StaticSize parentSize) noexcept
+	AbsoluteSize ConvertSizeRepresentation<AbsoluteSize, RelativeSize>(const RelativeSize& size, AbsoluteSize parentSize) noexcept
 	{
-		return StaticSize{ xk::Math::HadamardProduct(size.value, parentSize.value) };
+		return AbsoluteSize{ xk::Math::HadamardProduct(size.value, parentSize.value) };
 	}
 
 	template<>
-	RelativeSize ConvertSizeRepresentation<RelativeSize, RelativeSize>(const RelativeSize& size, StaticSize parentSize) noexcept
+	RelativeSize ConvertSizeRepresentation<RelativeSize, RelativeSize>(const RelativeSize& size, AbsoluteSize parentSize) noexcept
 	{
 		return size;
 	}
 
 	template<>
-	AspectRatioRelativeSize ConvertSizeRepresentation<AspectRatioRelativeSize, RelativeSize>(const RelativeSize& size, StaticSize parentSize) noexcept
+	AspectRatioRelativeSize ConvertSizeRepresentation<AspectRatioRelativeSize, RelativeSize>(const RelativeSize& size, AbsoluteSize parentSize) noexcept
 	{
-		return ConvertSizeRepresentation<AspectRatioRelativeSize>(ConvertSizeRepresentation<StaticSize>(size, parentSize), parentSize);
+		return ConvertSizeRepresentation<AspectRatioRelativeSize>(ConvertSizeRepresentation<AbsoluteSize>(size, parentSize), parentSize);
 	}
 
 	template<>
-	BorderConstantRelativeSize ConvertSizeRepresentation<BorderConstantRelativeSize, RelativeSize>(const RelativeSize& size, StaticSize parentSize) noexcept
+	BorderConstantRelativeSize ConvertSizeRepresentation<BorderConstantRelativeSize, RelativeSize>(const RelativeSize& size, AbsoluteSize parentSize) noexcept
 	{
-		return ConvertSizeRepresentation<BorderConstantRelativeSize>(ConvertSizeRepresentation<StaticSize>(size, parentSize), parentSize);
+		return ConvertSizeRepresentation<BorderConstantRelativeSize>(ConvertSizeRepresentation<AbsoluteSize>(size, parentSize), parentSize);
 	}
 
 	template<>
-	StaticSize ConvertSizeRepresentation<StaticSize, AspectRatioRelativeSize>(const AspectRatioRelativeSize& size, StaticSize parentSize) noexcept
+	AbsoluteSize ConvertSizeRepresentation<AbsoluteSize, AspectRatioRelativeSize>(const AspectRatioRelativeSize& size, AbsoluteSize parentSize) noexcept
 	{
 		const float parentRatio = parentSize.value.X() / parentSize.value.Y();
 		const float parentToElementRatio = parentRatio / std::fabs(size.ratio);
 		return (size.ratio >= 0) ?
-			StaticSize{ { parentSize.value.X() * size.value, parentSize.value.Y() * size.value * parentToElementRatio } } :
-			StaticSize{ { parentSize.value.X() * size.value / parentToElementRatio, parentSize.value.Y() * size.value } };
+			AbsoluteSize{ { parentSize.value.X() * size.value, parentSize.value.Y() * size.value * parentToElementRatio } } :
+			AbsoluteSize{ { parentSize.value.X() * size.value / parentToElementRatio, parentSize.value.Y() * size.value } };
 	}
 
 	template<>
-	RelativeSize ConvertSizeRepresentation<RelativeSize, AspectRatioRelativeSize>(const AspectRatioRelativeSize& size, StaticSize parentSize) noexcept
+	RelativeSize ConvertSizeRepresentation<RelativeSize, AspectRatioRelativeSize>(const AspectRatioRelativeSize& size, AbsoluteSize parentSize) noexcept
 	{
-		const Vector2 staticSize = ConvertSizeRepresentation<StaticSize>(size, parentSize).value;
-		return RelativeSize{ xk::Math::HadamardDivision(staticSize, parentSize.value) };
+		const Vector2 absoluteSize = ConvertSizeRepresentation<AbsoluteSize>(size, parentSize).value;
+		return RelativeSize{ xk::Math::HadamardDivision(absoluteSize, parentSize.value) };
 	}
 
 	template<>
-	AspectRatioRelativeSize ConvertSizeRepresentation<AspectRatioRelativeSize, AspectRatioRelativeSize>(const AspectRatioRelativeSize& size, StaticSize parentSize) noexcept
+	AspectRatioRelativeSize ConvertSizeRepresentation<AspectRatioRelativeSize, AspectRatioRelativeSize>(const AspectRatioRelativeSize& size, AbsoluteSize parentSize) noexcept
 	{
 		return size;
 	}
 
 	template<>
-	BorderConstantRelativeSize ConvertSizeRepresentation<BorderConstantRelativeSize, AspectRatioRelativeSize>(const AspectRatioRelativeSize& size, StaticSize parentSize) noexcept
+	BorderConstantRelativeSize ConvertSizeRepresentation<BorderConstantRelativeSize, AspectRatioRelativeSize>(const AspectRatioRelativeSize& size, AbsoluteSize parentSize) noexcept
 	{
-		return ConvertSizeRepresentation<BorderConstantRelativeSize>(ConvertSizeRepresentation<StaticSize>(size, parentSize), parentSize);
+		return ConvertSizeRepresentation<BorderConstantRelativeSize>(ConvertSizeRepresentation<AbsoluteSize>(size, parentSize), parentSize);
 	}
 
 	template<>
-	StaticSize ConvertSizeRepresentation<StaticSize, BorderConstantRelativeSize>(const BorderConstantRelativeSize& size, StaticSize parentSize) noexcept
+	AbsoluteSize ConvertSizeRepresentation<AbsoluteSize, BorderConstantRelativeSize>(const BorderConstantRelativeSize& size, AbsoluteSize parentSize) noexcept
 	{
 		if(parentSize.value.X() >= parentSize.value.Y())
 		{
 			const float baseSize = parentSize.value.X() - parentSize.value.Y();
 			const float remainingSize = parentSize.value.X() - baseSize;
-			return StaticSize{ { baseSize + remainingSize * size.value.X(), parentSize.value.Y() * size.value.Y() } };
+			return AbsoluteSize{ { baseSize + remainingSize * size.value.X(), parentSize.value.Y() * size.value.Y() } };
 		}
 		else
 		{
 			const float baseSize = parentSize.value.Y() - parentSize.value.X();
 			const float remainingSize = parentSize.value.Y() - baseSize;
-			return StaticSize{ { parentSize.value.X() * size.value.X(), baseSize + remainingSize * size.value.Y() } };
+			return AbsoluteSize{ { parentSize.value.X() * size.value.X(), baseSize + remainingSize * size.value.Y() } };
 		}
 	}
 
 	template<>
-	RelativeSize ConvertSizeRepresentation<RelativeSize, BorderConstantRelativeSize>(const BorderConstantRelativeSize& size, StaticSize parentSize) noexcept
+	RelativeSize ConvertSizeRepresentation<RelativeSize, BorderConstantRelativeSize>(const BorderConstantRelativeSize& size, AbsoluteSize parentSize) noexcept
 	{
-		const Vector2 staticSize = ConvertSizeRepresentation<StaticSize>(size, parentSize).value;
+		const Vector2 staticSize = ConvertSizeRepresentation<AbsoluteSize>(size, parentSize).value;
 		return RelativeSize{ xk::Math::HadamardDivision(staticSize, parentSize.value) };
 	}
 
 	template<>
-	AspectRatioRelativeSize ConvertSizeRepresentation<AspectRatioRelativeSize, BorderConstantRelativeSize>(const BorderConstantRelativeSize& size, StaticSize parentSize) noexcept
+	AspectRatioRelativeSize ConvertSizeRepresentation<AspectRatioRelativeSize, BorderConstantRelativeSize>(const BorderConstantRelativeSize& size, AbsoluteSize parentSize) noexcept
 	{
-		return ConvertSizeRepresentation<AspectRatioRelativeSize>(ConvertSizeRepresentation<StaticSize>(size, parentSize), parentSize);
+		return ConvertSizeRepresentation<AspectRatioRelativeSize>(ConvertSizeRepresentation<AbsoluteSize>(size, parentSize), parentSize);
 	}
 
 	template<>
-	BorderConstantRelativeSize ConvertSizeRepresentation<BorderConstantRelativeSize, BorderConstantRelativeSize>(const BorderConstantRelativeSize& size, StaticSize parentSize) noexcept
+	BorderConstantRelativeSize ConvertSizeRepresentation<BorderConstantRelativeSize, BorderConstantRelativeSize>(const BorderConstantRelativeSize& size, AbsoluteSize parentSize) noexcept
 	{
 		return size;
 	}
 
 	//Calculates an equivalent position that would not affect the visual position of an element between different pivots
-	export StaticPosition ConvertPivotEquivalentStaticPosition(Vector2 fromPivot, Vector2 toPivot, StaticPosition fromPosition, RelativeSize elementSize, StaticSize parentSize) noexcept
+	export AbsolutePosition ConvertPivotEquivalentAbsolutePosition(Vector2 fromPivot, Vector2 toPivot, AbsolutePosition fromPosition, RelativeSize elementSize, AbsoluteSize parentSize) noexcept
 	{
 		const Vector2 pivotDiff = toPivot - fromPivot;
 		const Vector2 offset = xk::Math::HadamardProduct(pivotDiff, elementSize.value);
-		return StaticPosition{ fromPosition.value + ConvertSizeRepresentation<StaticSize>(RelativeSize{ offset }, parentSize).value };
+		return AbsolutePosition{ fromPosition.value + ConvertSizeRepresentation<AbsoluteSize>(RelativeSize{ offset }, parentSize).value };
 	}
 
 	//Calculates an equivalent position that would not affect the visual position of an element between different pivots
-	export RelativePosition ConvertPivotEquivalentRelativePosition(Vector2 fromPivot, Vector2 toPivot, RelativePosition fromPosition, RelativeSize elementSize, StaticSize parentSize) noexcept
+	export RelativePosition ConvertPivotEquivalentRelativePosition(Vector2 fromPivot, Vector2 toPivot, RelativePosition fromPosition, RelativeSize elementSize, AbsoluteSize parentSize) noexcept
 	{
 		const Vector2 pivotDiff = toPivot - fromPivot;
 		const Vector2 offset = xk::Math::HadamardProduct(pivotDiff, elementSize.value);
@@ -228,12 +230,12 @@ namespace DeluEngine::GUI
 	}
 
 	//Calculates an equivalent position that would not affect the visual position of an element between different pivots
-	export PositionVariant ConvertPivotEquivalentPosition(Vector2 fromPivot, Vector2 toPivot, PositionVariant fromPosition, RelativeSize elementSize, StaticSize parentSize) noexcept
+	export PositionVariant ConvertPivotEquivalentPosition(Vector2 fromPivot, Vector2 toPivot, PositionVariant fromPosition, RelativeSize elementSize, AbsoluteSize parentSize) noexcept
 	{
-		static_assert(std::same_as<PositionVariant, std::variant<StaticPosition, RelativePosition>>, "Position variant changed, function requires changes");
-		if(auto* position = std::get_if<StaticPosition>(&fromPosition); position)
+		static_assert(std::same_as<PositionVariant, std::variant<AbsolutePosition, RelativePosition>>, "Position variant changed, function requires changes");
+		if(auto* position = std::get_if<AbsolutePosition>(&fromPosition); position)
 		{
-			return StaticPosition{ ConvertPivotEquivalentStaticPosition(fromPivot, toPivot, *position, elementSize, parentSize) };
+			return AbsolutePosition{ ConvertPivotEquivalentAbsolutePosition(fromPivot, toPivot, *position, elementSize, parentSize) };
 		}
 		else
 		{
@@ -243,8 +245,13 @@ namespace DeluEngine::GUI
 
 	export struct Rect
 	{
-		StaticPosition bottomLeft;
-		StaticPosition topRight;
+		AbsolutePosition bottomLeft;
+		AbsolutePosition topRight;
+
+		AbsolutePosition Center() const noexcept
+		{
+			return AbsolutePosition{ xk::Math::HadamardDivision(bottomLeft.value + topRight.value, Vector2{ 2, 2 }) };
+		}
 
 		float Width() const noexcept
 		{
@@ -256,7 +263,7 @@ namespace DeluEngine::GUI
 			return topRight.value.Y() - bottomLeft.value.Y();
 		}
 
-		bool Overlaps(const StaticPosition& other) const noexcept
+		bool Overlaps(const AbsolutePosition& other) const noexcept
 		{
 			return xk::Math::InRange(xk::Math::Inclusive{ bottomLeft.value.X() }, other.value.X(), xk::Math::Inclusive{ topRight.value.X() })
 				&& xk::Math::InRange(xk::Math::Inclusive{ bottomLeft.value.Y() }, other.value.Y(), xk::Math::Inclusive{ topRight.value.Y() });
@@ -268,11 +275,19 @@ namespace DeluEngine::GUI
 		}
 	};
 
+	export class UIElement;
+
 	export class UIFrame
 	{
+		friend UIElement;
+	private:
+		std::vector<UIElement*> m_rootElements;
+
 	public:
 		SDL2pp::unique_ptr<SDL2pp::Texture> internalTexture;
 		Vector2 GetSize() const noexcept { return internalTexture->GetSize(); }
+
+		std::unique_ptr<UIElement> NewElement(PositionVariant position, SizeVariant size, Vector2 pivot, UIElement* parent = nullptr);
 	};
 
 	export enum class PivotChangePolicy
@@ -286,7 +301,7 @@ namespace DeluEngine::GUI
 
 	export enum class UIReparentLogic
 	{
-		KeepStaticTransform,
+		KeepAbsoluteTransform,
 		KeepRelativeTransform
 	};
 
@@ -310,6 +325,28 @@ namespace DeluEngine::GUI
 		{
 
 		}
+		UIElement(UIFrame& ownerFrame, PositionVariant position, SizeVariant size, Vector2 pivot, UIElement* parent = nullptr) :
+			m_ownerFrame{ &ownerFrame },
+			m_parent{ parent },
+			m_position{ position },
+			m_size{ size },
+			m_pivot{ pivot }
+		{
+			SetParent(parent);
+		}
+
+		UIElement(UIElement&&) noexcept = default;
+
+		~UIElement()
+		{
+			while(!m_children.empty())
+			{
+				m_children.back()->SetParent(m_parent, UIReparentLogic::KeepAbsoluteTransform);
+			}
+			SetParent(nullptr);
+		}
+
+		UIElement& operator=(UIElement&&) noexcept = default;
 
 	public:
 		Vector2 GetPivot() const noexcept
@@ -320,9 +357,9 @@ namespace DeluEngine::GUI
 		template<VariantMember<PositionVariant> Ty>
 		Ty GetPivotOffset() const noexcept
 		{
-			const Vector2 size = GetFrameSizeAs<StaticSize>().value;
+			const Vector2 size = GetFrameSizeAs<AbsoluteSize>().value;
 			const Vector2 pivotOffset = { GetPivot().X() * -size.X(), GetPivot().Y() * -size.Y() };
-			return ConvertPositionRepresentation<Ty>(StaticPosition{ pivotOffset }, StaticSize{ m_ownerFrame->GetSize() });
+			return ConvertPositionRepresentation<Ty>(AbsolutePosition{ pivotOffset }, AbsoluteSize{ m_ownerFrame->GetSize() });
 		}
 
 		template<VariantMember<PositionVariant> Ty>
@@ -330,9 +367,9 @@ namespace DeluEngine::GUI
 		{
 			return std::visit([this](const auto& val) -> Ty
 				{
-					const Vector2 size = GetFrameSizeAs<StaticSize>().value;
+					const Vector2 size = GetFrameSizeAs<AbsoluteSize>().value;
 					const Vector2 pivotOffset = { GetPivot().X() * -size.X(), GetPivot().Y() * -size.Y() };
-					return ConvertPositionRepresentation<Ty>(StaticPosition{ GetLocalPositionAs<StaticPosition>().value + GetParentPivotedFrameStaticPosition().value + pivotOffset }, StaticSize{ m_ownerFrame->GetSize() });
+					return ConvertPositionRepresentation<Ty>(AbsolutePosition{ GetLocalPositionAs<AbsolutePosition>().value + GetParentPivotedFrameAbsolutePosition().value + pivotOffset }, AbsoluteSize{ m_ownerFrame->GetSize() });
 				}, m_position);
 		}
 
@@ -341,14 +378,14 @@ namespace DeluEngine::GUI
 		{
 			return std::visit([this](const auto& val) -> Ty
 				{
-					return ConvertPositionRepresentation<Ty>(StaticPosition{ GetLocalPositionAs<StaticPosition>().value + GetParentPivotedFrameStaticPosition().value }, StaticSize{ m_ownerFrame->GetSize() });
+					return ConvertPositionRepresentation<Ty>(AbsolutePosition{ GetLocalPositionAs<AbsolutePosition>().value + GetParentPivotedFrameAbsolutePosition().value }, AbsoluteSize{ m_ownerFrame->GetSize() });
 				}, m_position);
 		}
 
 		template<VariantMember<SizeVariant> Ty>
 		Ty GetFrameSizeAs() const noexcept
 		{
-			return ConvertSizeRepresentation<Ty>(GetLocalSizeAs<StaticSize>(), StaticSize{ m_ownerFrame->GetSize() });
+			return ConvertSizeRepresentation<Ty>(GetLocalSizeAs<AbsoluteSize>(), AbsoluteSize{ m_ownerFrame->GetSize() });
 		}
 
 		template<VariantMember<PositionVariant> Ty>
@@ -356,7 +393,7 @@ namespace DeluEngine::GUI
 		{
 			return std::visit([this](const auto& val) -> Ty
 				{
-					return ConvertPositionRepresentation<Ty>(val, GetParentStaticSize());
+					return ConvertPositionRepresentation<Ty>(val, GetParentAbsoluteSize());
 				}, m_position);
 		}
 
@@ -365,7 +402,7 @@ namespace DeluEngine::GUI
 		{
 			return std::visit([this](const auto& val) -> Ty
 				{
-					return ConvertSizeRepresentation<Ty>(val, GetParentStaticSize());
+					return ConvertSizeRepresentation<Ty>(val, GetParentAbsoluteSize());
 				}, m_size);
 		}
 
@@ -392,7 +429,7 @@ namespace DeluEngine::GUI
 			std::visit([this, &val](auto& innerVal)
 				{
 					using Inner_Ty = std::remove_cvref_t<decltype(innerVal)>;
-					innerVal = ConvertPositionRepresentation<Inner_Ty>(val, GetParentStaticSize());
+					innerVal = ConvertPositionRepresentation<Inner_Ty>(val, GetParentAbsoluteSize());
 				}, m_position);
 		}
 
@@ -402,7 +439,7 @@ namespace DeluEngine::GUI
 			std::visit([this, &val](auto& innerVal)
 				{
 					using Inner_Ty = std::remove_cvref_t<decltype(innerVal)>;
-					innerVal = ConvertSizeRepresentation<Inner_Ty>(val, GetParentStaticSize());
+					innerVal = ConvertSizeRepresentation<Inner_Ty>(val, GetParentAbsoluteSize());
 				}, m_size);
 		}
 
@@ -412,9 +449,9 @@ namespace DeluEngine::GUI
 			std::visit([this, &val](auto& innerVal)
 				{
 					using Inner_Ty = std::remove_cvref_t<decltype(innerVal)>;
-					StaticPosition parentPosition = (m_parent) ? m_parent->GetPivotedFramePositionAs<StaticPosition>() : StaticPosition{};
-					StaticPosition requestedPosition = ConvertPositionRepresentation<StaticPosition>(val, StaticSize{ m_ownerFrame->GetSize() });
-					innerVal = ConvertPositionRepresentation<Inner_Ty>(StaticPosition{ requestedPosition.value - parentPosition.value }, GetParentStaticSize());
+					AbsolutePosition parentPosition = (m_parent) ? m_parent->GetPivotedFramePositionAs<AbsolutePosition>() : AbsolutePosition{};
+					AbsolutePosition requestedPosition = ConvertPositionRepresentation<AbsolutePosition>(val, AbsoluteSize{ m_ownerFrame->GetSize() });
+					innerVal = ConvertPositionRepresentation<Inner_Ty>(AbsolutePosition{ requestedPosition.value - parentPosition.value }, GetParentAbsoluteSize());
 				}, m_position);
 		}
 
@@ -424,8 +461,8 @@ namespace DeluEngine::GUI
 			std::visit([this, &val](auto& innerVal)
 				{
 					using Inner_Ty = std::remove_cvref_t<decltype(innerVal)>;
-					StaticSize requestedStaticSize = ConvertSizeRepresentation<StaticSize>(val, StaticSize{ m_ownerFrame->GetSize() });
-					innerVal = ConvertSizeRepresentation<Inner_Ty>(requestedStaticSize, GetParentStaticSize());
+					AbsoluteSize requestedAbsoluteSize = ConvertSizeRepresentation<AbsoluteSize>(val, AbsoluteSize{ m_ownerFrame->GetSize() });
+					innerVal = ConvertSizeRepresentation<Inner_Ty>(requestedAbsoluteSize, GetParentAbsoluteSize());
 				}, m_size);
 		}
 
@@ -454,7 +491,7 @@ namespace DeluEngine::GUI
 			}
 			case PivotChangePolicy::NoVisualChange:
 			{
-				m_position = ConvertPivotEquivalentPosition(m_pivot, pivot, m_position, GetLocalSizeAs<RelativeSize>(), GetParentStaticSize());
+				m_position = ConvertPivotEquivalentPosition(m_pivot, pivot, m_position, GetLocalSizeAs<RelativeSize>(), GetParentAbsoluteSize());
 				m_pivot = pivot;
 				break;
 			}
@@ -463,16 +500,21 @@ namespace DeluEngine::GUI
 			}
 		}
 
-		StaticSize GetParentStaticSize() const noexcept
+		AbsoluteSize GetParentAbsoluteSize() const noexcept
 		{
-			return m_parent ? m_parent->GetFrameSizeAs<StaticSize>() : StaticSize{ m_ownerFrame->GetSize() };
+			return m_parent ? m_parent->GetFrameSizeAs<AbsoluteSize>() : AbsoluteSize{ m_ownerFrame->GetSize() };
 		}
 
-		StaticPosition GetParentPivotedFrameStaticPosition() const noexcept
+		AbsolutePosition GetParentPivotedFrameAbsolutePosition() const noexcept
 		{
-			return m_parent ? m_parent->GetPivotedFramePositionAs<StaticPosition>() : StaticPosition{};
+			return m_parent ? m_parent->GetPivotedFramePositionAs<AbsolutePosition>() : AbsolutePosition{};
 		}
 
 		const UIFrame& GetFrame() const { return *m_ownerFrame; }
 	};
+
+	std::unique_ptr<UIElement> UIFrame::NewElement(PositionVariant position, SizeVariant size, Vector2 pivot, UIElement* parent)
+	{
+		return std::make_unique<UIElement>(*this, position, size, pivot, parent);
+	}
 }
