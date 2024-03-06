@@ -280,6 +280,7 @@ namespace DeluEngine::GUI
 	export class UIFrame
 	{
 		friend UIElement;
+
 	private:
 		std::vector<UIElement*> m_rootElements;
 
@@ -288,6 +289,8 @@ namespace DeluEngine::GUI
 		Vector2 GetSize() const noexcept { return internalTexture->GetSize(); }
 
 		std::unique_ptr<UIElement> NewElement(PositionVariant position, SizeVariant size, Vector2 pivot, UIElement* parent = nullptr);
+
+		const std::vector<UIElement*>& GetRootElements() const noexcept { return m_rootElements; }
 	};
 
 	export enum class PivotChangePolicy
@@ -325,6 +328,7 @@ namespace DeluEngine::GUI
 		{
 
 		}
+
 		UIElement(UIFrame& ownerFrame, PositionVariant position, SizeVariant size, Vector2 pivot, UIElement* parent = nullptr) :
 			m_ownerFrame{ &ownerFrame },
 			m_parent{ parent },
@@ -349,6 +353,14 @@ namespace DeluEngine::GUI
 		UIElement& operator=(UIElement&&) noexcept = default;
 
 	public:
+		const std::vector<UIElement*>& GetChildren() const noexcept { return m_children; }
+
+		Rect GetRect() const noexcept
+		{
+			AbsolutePosition bottomLeft = GetPivotedFramePositionAs<AbsolutePosition>();
+			return { bottomLeft, AbsolutePosition{ bottomLeft.value + GetFrameSizeAs<AbsoluteSize>().value} };
+		}
+
 		Vector2 GetPivot() const noexcept
 		{
 			return m_pivot;

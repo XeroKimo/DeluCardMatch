@@ -59,6 +59,33 @@ bool IsOverlapping(Vector2 mousePos, const DeluEngine::GUI::UIElement& element)
 		mousePos.Y() >= minPos.Y() && mousePos.Y() <= minPos.Y() + size.Y();
 }
 
+void DrawElement(DeluEngine::Renderer& renderer, DeluEngine::GUI::UIElement& element)
+{
+	renderer.backend->CopyEx(element.texture.get(), std::nullopt, GetRect(element), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+
+	std::vector<DeluEngine::GUI::UIElement*> children = element.GetChildren();
+	for(DeluEngine::GUI::UIElement* child : children)
+	{
+		DrawElement(renderer, *child);
+	}
+}
+
+void DrawFrame(DeluEngine::Renderer& renderer, DeluEngine::GUI::UIFrame& frame)
+{
+	renderer.backend->SetRenderTarget(frame.internalTexture.get());
+	renderer.backend->SetDrawColor(SDL2pp::Color{ 255, 255, 255, 0 });
+	renderer.backend->Clear();
+
+	std::vector<DeluEngine::GUI::UIElement*> rootElements = frame.GetRootElements();
+	for(DeluEngine::GUI::UIElement* element : rootElements)
+	{
+		DrawElement(renderer, *element);
+	}
+
+	renderer.backend->SetRenderTarget(nullptr);
+	renderer.backend->Copy(frame.internalTexture.get(), std::nullopt, std::optional<SDL2pp::Rect>(std::nullopt));
+}
+
 int main()
 {
 	ApplicationTimer timer;
@@ -116,9 +143,9 @@ int main()
 	//testElement2->SetFramePosition(DeluEngine::GUI::ConvertPivotEquivalentRelativePosition(testElement2->GetPivot(), { 0, 0 }, DeluEngine::GUI::RelativePosition{ testElement2->GetPivotedFramePositionAs<DeluEngine::GUI::RelativePosition>().value - testElement2->GetPivotOffset<DeluEngine::GUI::RelativePosition>().value }, testElement2->GetLocalSizeAs<DeluEngine::GUI::RelativeSize>(), DeluEngine::GUI::AbsoluteSize{ testElement2->GetFrame().GetSize() }));
 	//testElement2->SetFramePosition(DeluEngine::GUI::ConvertPivotEquivalentRelativePosition(testElement2->GetPivot(), { 0, 0 }, DeluEngine::GUI::RelativePosition{ testElement2->GetFramePositionAs<DeluEngine::GUI::RelativePosition>().value + testElement2->GetPivotOffset<DeluEngine::GUI::RelativePosition>().value }, testElement2->GetLocalSizeAs<DeluEngine::GUI::RelativeSize>(), DeluEngine::GUI::AbsoluteSize{ testElement2->GetFrame().GetSize() }));
 	//testElement2->SetFramePosition(DeluEngine::GUI::ConvertPivotEquivalentRelativePosition(testElement2->GetPivot(), { 0, 0 }, DeluEngine::GUI::RelativePosition{ testElement2->GetFramePositionAs<DeluEngine::GUI::RelativePosition>().value + testElement2->GetPivotOffset<DeluEngine::GUI::RelativePosition>().value }, testElement2->GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement2->GetParentAbsoluteSize()));
-	testElement2->SetFramePosition(DeluEngine::GUI::ConvertPivotEquivalentRelativePosition(testElement2->GetPivot(), { 0, 0 }, testElement2->GetFramePositionAs<DeluEngine::GUI::RelativePosition>(), testElement2->GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement2->GetParentAbsoluteSize()));
+	//testElement2->SetFramePosition(DeluEngine::GUI::ConvertPivotEquivalentRelativePosition(testElement2->GetPivot(), { 0, 0 }, testElement2->GetFramePositionAs<DeluEngine::GUI::RelativePosition>(), testElement2->GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement2->GetParentAbsoluteSize()));
 
-	testElement2->SetPivot({ 0.0f, 0.0f });
+	//testElement2->SetPivot({ 0.0f, 0.0f });
 	//testElement2->SetAbsolutePosition({ 950.33f, 0.0f });
 	//testElement2->position = DeluEngine::GUI::AbsolutePosition{ { 500, 300 } };
 
@@ -194,9 +221,9 @@ int main()
 					//testElement->position.Y() = testElement->size.Y() * std::sin(accumulator.count());
 					//testElement->SetPivot({ testElement->GetPivot().X(), (std::sin(accumulator.count()) + 1) / 2 });
 					//testElement->SetLocalPosition(DeluEngine::GUI::RelativePosition{ { testElement->GetLocalPositionAs<DeluEngine::GUI::RelativePosition>().value.X(), (std::sin(accumulator.count()) + 1) / 2 } });
-					testElement->SetLocalPosition(DeluEngine::GUI::RelativePosition{ { (std::sin(accumulator.count()) + 1) / 2, testElement->GetLocalPositionAs<DeluEngine::GUI::RelativePosition>().value.Y() } });
-					//testElement3->SetFramePosition(DeluEngine::GUI::RelativePosition{ { 0.5f, (std::sin(accumulator.count()) + 1) / 2 } });
-					//testElement2->SetPivot({ testElement->GetPivot().X(), (std::sin(accumulator.count()) + 1) / 2 });
+					//testElement->SetLocalPosition(DeluEngine::GUI::RelativePosition{ { (std::sin(accumulator.count()) + 1) / 2, testElement->GetLocalPositionAs<DeluEngine::GUI::RelativePosition>().value.Y() } });
+					testElement3->SetFramePosition(DeluEngine::GUI::RelativePosition{ { 0.5f, (std::sin(accumulator.count()) + 1) / 2 } });
+					testElement2->SetPivot({ testElement->GetPivot().X(), (std::sin(accumulator.count()) + 1) / 2 });
 					//std::cout << testElement->GetPivot().Y() << "\n";
 					std::chrono::duration<float> deltaTime = std::chrono::duration_cast<std::chrono::duration<float>>(dt);
 					static constexpr std::chrono::duration<float> physicsStep{ 1.f / 60.f };
@@ -216,17 +243,12 @@ int main()
 
 			engine.renderer.Render();
 			{
-				engine.renderer.backend->SetRenderTarget(frame.internalTexture.get());
-				engine.renderer.backend->SetDrawColor(SDL2pp::Color{ 255, 255, 255, 0 });
 
-				engine.renderer.backend->Clear();
-				SDL_Rect textLocation = { 400, 200, testFontSurface->w, testFontSurface->h };
-				engine.renderer.backend->Copy(testFontTexture, std::nullopt, textLocation);
-
-				engine.renderer.backend->CopyEx(testElement->texture.get(), std::nullopt, GetRect(*testElement), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
-				engine.renderer.backend->CopyEx(testElement2->texture.get(), std::nullopt, GetRect(*testElement2), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
-				engine.renderer.backend->CopyEx(testElement3->texture.get(), std::nullopt, GetRect(*testElement3), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
-				engine.renderer.backend->CopyEx(mouseDebug->texture.get(), std::nullopt, GetRect(*mouseDebug), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+				////Formerly drawn within a frame
+				//SDL_Rect textLocation = { 400, 200, testFontSurface->w, testFontSurface->h };
+				//engine.renderer.backend->Copy(testFontTexture, std::nullopt, textLocation);
+				
+				DrawFrame(engine.renderer, frame);
 
 				hoveredElement = nullptr;
 
@@ -240,8 +262,6 @@ int main()
 					hoveredElement = testElement2.get();
 					//std::cout << "Overlapping second element\n";
 				}
-				engine.renderer.backend->SetRenderTarget(nullptr);
-				engine.renderer.backend->Copy(frame.internalTexture.get(), std::nullopt, std::optional<SDL2pp::Rect>(std::nullopt));
 			}
 
 			engine.renderer.backend->Present();
