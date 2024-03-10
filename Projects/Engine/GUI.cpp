@@ -1,10 +1,70 @@
+module;
 
 #include <vector>
+#include <variant>
+#include <concepts>
+#include <iostream>
 
 module DeluEngine:GUI;
+import :Renderer;
+import SDL2pp;
 
 namespace DeluEngine::GUI
 {
+	int UIElement::HandleEvent(const Event& event)
+	{
+		static bool oneTimeHoverCheck = true;
+		static bool oneTimeHeldCheck = true;
+		return std::visit([&, this](const auto& underlyingEvent) -> int
+		{
+			using underlying_type = std::remove_cvref_t<decltype(underlyingEvent)>;
+			if constexpr(std::same_as<underlying_type, MouseEvent>)
+			{
+				//underlyingEvent.renderer->backend->CopyEx(texture.get(), std::nullopt, GUI::GetRect(*this), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+				if(underlyingEvent.type == MouseEventType::Overlap)
+				{
+					std::cout << "Overlapped: " << debugName << "\n";
+				}
+				else if(underlyingEvent.type == MouseEventType::Unoverlap)
+				{
+					std::cout << "Uoverlapped: " << debugName << "\n";
+					oneTimeHoverCheck = true;
+				}
+				else if(underlyingEvent.type == MouseEventType::Hover && oneTimeHoverCheck)
+				{
+					std::cout << "Hover: " << debugName << "\n";
+					oneTimeHoverCheck = false;
+				}
+
+				if(underlyingEvent.action)
+				{
+					if(*underlyingEvent.action == MouseClickType::Pressed)
+					{
+						std::cout << "Pressed: " << debugName << "\n";
+					}
+					else if(*underlyingEvent.action == MouseClickType::Released)
+					{
+						std::cout << "Released: " << debugName << "\n";
+						oneTimeHeldCheck = true;
+					}
+					else if(*underlyingEvent.action == MouseClickType::Clicked)
+					{
+						std::cout << "Clicked: " << debugName << "\n";
+					}
+					else if(*underlyingEvent.action == MouseClickType::Held && oneTimeHeldCheck)
+					{
+						std::cout << "Held: " << debugName << "\n";
+						oneTimeHeldCheck = false;
+					}
+				}
+
+
+				return underlyingEvent.handledCode;
+			}
+			return defaultSuccessCode;
+		}, event);
+	}
+
 	void UIElement::SetParent(UIElement* newParent, UIReparentLogic logic)
 	{
 		auto reparent = [this, newParent]()

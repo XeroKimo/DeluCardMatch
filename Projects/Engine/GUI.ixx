@@ -5,7 +5,9 @@ module;
 #include <algorithm>
 #include <utility>
 #include <vector>
+#include <optional>
 #include <memory>
+#include <string>
 
 export module DeluEngine:GUI;
 import xk.Math.Matrix;
@@ -51,9 +53,6 @@ namespace DeluEngine::GUI
 		Vector2 value;
 	};
 
-	export using PositionVariant = std::variant<AbsolutePosition, RelativePosition>;
-	export using SizeVariant = std::variant<AbsoluteSize, RelativeSize, AspectRatioRelativeSize, BorderConstantRelativeSize>;
-
 	template<class T, class U> struct IsVariantMember;
 
 	template<class T, class... Ts>
@@ -64,8 +63,11 @@ namespace DeluEngine::GUI
 	template<class Ty, class VariantTy>
 	concept VariantMember = (IsVariantMember<Ty, VariantTy>::value);
 
+	export using PositionVariant = std::variant<AbsolutePosition, RelativePosition>;
+	export using SizeVariant = std::variant<AbsoluteSize, RelativeSize, AspectRatioRelativeSize, BorderConstantRelativeSize>;
+
 	export template<VariantMember<PositionVariant> ToType, VariantMember<PositionVariant> FromType>
-	ToType ConvertPositionRepresentation(const FromType& position, AbsoluteSize parentSize) = delete;
+		ToType ConvertPositionRepresentation(const FromType& position, AbsoluteSize parentSize) = delete;
 
 	template<>
 	AbsolutePosition ConvertPositionRepresentation<AbsolutePosition, AbsolutePosition>(const AbsolutePosition& position, AbsoluteSize parentSize) noexcept
@@ -92,7 +94,7 @@ namespace DeluEngine::GUI
 	}
 
 	export template<VariantMember<SizeVariant> ToType, VariantMember<SizeVariant> FromType>
-	ToType ConvertSizeRepresentation(const FromType& size, AbsoluteSize parentSize) = delete;
+		ToType ConvertSizeRepresentation(const FromType& size, AbsoluteSize parentSize) = delete;
 
 	template<>
 	AbsoluteSize ConvertSizeRepresentation<AbsoluteSize, AbsoluteSize>(const AbsoluteSize& size, AbsoluteSize parentSize) noexcept
@@ -116,12 +118,12 @@ namespace DeluEngine::GUI
 	BorderConstantRelativeSize ConvertSizeRepresentation<BorderConstantRelativeSize, AbsoluteSize>(const AbsoluteSize& size, AbsoluteSize parentSize) noexcept
 	{
 		const auto [baseSize, variableSize] = [parentSize]()
-		{
-			const auto [min, max] = std::minmax(parentSize.value.X(), parentSize.value.Y());
-			return std::pair(Vector2{ min, min }, Vector2{ max, max } - Vector2{ min, min });
-		}();
+			{
+				const auto [min, max] = std::minmax(parentSize.value.X(), parentSize.value.Y());
+				return std::pair(Vector2{ min, min }, Vector2{ max, max } - Vector2{ min, min });
+			}();
 
-		return BorderConstantRelativeSize{ xk::Math::HadamardDivision(size.value - baseSize, variableSize) };
+			return BorderConstantRelativeSize{ xk::Math::HadamardDivision(size.value - baseSize, variableSize) };
 	}
 
 	template<>
@@ -275,6 +277,35 @@ namespace DeluEngine::GUI
 		}
 	};
 
+	constexpr int defaultSuccessCode = 0;
+
+	export enum class MouseEventType
+	{
+		Overlap,
+		Unoverlap,
+		Hover,
+	};
+
+	export enum class MouseClickType
+	{
+		Pressed,
+		Released,
+		Clicked,
+		Held,
+	};
+
+	export struct MouseEvent
+	{
+		MouseEventType type;
+		std::optional<MouseClickType> action;
+		//AbsolutePosition frameCursorPosition;
+
+		static constexpr int handledCode = 0;
+		static constexpr int unhandledCode = 0;
+	};
+
+	export using Event = std::variant<MouseEvent>;
+
 	export class UIElement;
 
 	export class UIFrame
@@ -320,6 +351,7 @@ namespace DeluEngine::GUI
 		Vector2 m_pivot;
 
 	public:
+		std::string debugName;
 		SDL2pp::shared_ptr<SDL2pp::Texture> texture;
 
 	public:
@@ -353,6 +385,8 @@ namespace DeluEngine::GUI
 		UIElement& operator=(UIElement&&) noexcept = default;
 
 	public:
+		virtual int HandleEvent(const Event& event);
+
 		const std::vector<UIElement*>& GetChildren() const noexcept { return m_children; }
 
 		Rect GetRect() const noexcept

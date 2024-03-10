@@ -38,17 +38,18 @@ void SetAnchors(DeluEngine::GUI::UIElement& element, Vector2 minAnchor, Vector2 
 
 SDL2pp::FRect GetRect(const DeluEngine::GUI::UIElement& element)
 {
+	DeluEngine::GUI::Rect baseRect = element.GetRect();
 	SDL2pp::FRect rect;
 	const Vector2 size = element.GetFrameSizeAs<DeluEngine::GUI::AbsoluteSize>().value;
 	const Vector2 pivotOffsetFlip = { 0, size.Y() };
 	const Vector2 sdl2YFlip = { 0, element.GetFrame().GetSize().Y()  };
-	const Vector2 position = xk::Math::HadamardProduct(element.GetPivotedFramePositionAs<DeluEngine::GUI::AbsolutePosition>().value + pivotOffsetFlip, Vector2{ 1, -1 }) + sdl2YFlip;
+	const Vector2 position = xk::Math::HadamardProduct(baseRect.bottomLeft.value + pivotOffsetFlip, Vector2{ 1, -1 }) + sdl2YFlip;
 
-		rect.x = position.X();
-		rect.y = position.Y();
-		rect.w = size.X();
-		rect.h = size.Y();
-		return rect;
+	rect.x = position.X();
+	rect.y = position.Y();
+	rect.w = size.X();
+	rect.h = size.Y();
+	return rect;
 }
 
 bool IsOverlapping(Vector2 mousePos, const DeluEngine::GUI::UIElement& element)
@@ -122,6 +123,7 @@ int main()
 	SDL_Surface* testSurface = IMG_Load("Cards/syobontaya.png");
 
 	std::unique_ptr<DeluEngine::GUI::UIElement> testElement = frame.NewElement({}, {}, {}, nullptr);
+	testElement->debugName = "One";
 	testElement->SetPositionRepresentation(DeluEngine::GUI::RelativePosition{ { 0.0f, 0.5f } });
 	testElement->SetSizeRepresentation(DeluEngine::GUI::RelativeSize({ 0.5f, 0.5f }));
 	testElement->SetPivot({ 0.5f, 0.5f });
@@ -130,6 +132,7 @@ int main()
 	testElement->ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::AbsoluteSize>();
 	testElement->ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::RelativeSize>();
 	std::unique_ptr<DeluEngine::GUI::UIElement> testElement2 = frame.NewElement(testElement->GetFramePositionAs<DeluEngine::GUI::RelativePosition>(), testElement->GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement->GetPivot(), nullptr);
+	testElement2->debugName = "Two";
 	testElement2->texture = testElement->texture;
 	testElement2->SetPivot({ 0.5f, 0.5f });
 	//SetAnchors(testElement2, { 0.05f, 0.05f }, { 0.95f, 0.95f });
@@ -156,6 +159,8 @@ int main()
 	//testElement2->pivot = testElement->pivot;
 
 	std::unique_ptr<DeluEngine::GUI::UIElement> testElement3 = frame.NewElement(testElement->GetFramePositionAs<DeluEngine::GUI::RelativePosition>(), testElement->GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement->GetPivot(), testElement2.get());
+
+	testElement3->debugName = "Three";
 	testElement3->texture = testElement->texture; 
 	//testElement3->SetParent(testElement2.get());
 	testElement3->SetPivot({ 0.5f, 0.5f });
@@ -180,6 +185,10 @@ int main()
 	mouseDebug->SetSizeRepresentation(DeluEngine::GUI::AbsoluteSize{ { 8, 8 } });
 	mouseDebug->SetPivot({ 0.5f, 0.5f });
 	DeluEngine::GUI::UIElement* hoveredElement = nullptr;
+	DeluEngine::GUI::UIElement* previousHoveredElement = nullptr;
+	DeluEngine::GUI::UIElement* initialPressedElement = nullptr;
+	bool pressed = false;
+	bool previousPressed = false;
 	while(true)
 	{
 		SDL2pp::Event event;
@@ -192,6 +201,35 @@ int main()
 			if(event.type == SDL2pp::EventType::SDL_MOUSEMOTION)
 			{
 				mouseDebug->SetLocalPosition(DeluEngine::GUI::RelativePosition{ xk::Math::HadamardDivision(Vector2{ event.motion.x, engine.renderer.backend->GetOutputSize().Y() - event.motion.y }, engine.renderer.backend->GetOutputSize()) });
+				
+				//TODO: Currently hovered element detection is only working on mouse movement, it's possible that elements can move by themselves and no longer overlap with the cursor.
+				//This scenario likely won't occur during card match game but a note for reminder
+				previousHoveredElement = hoveredElement;
+				hoveredElement = nullptr;
+
+				if(IsOverlapping(mouseDebug->GetFramePositionAs<DeluEngine::GUI::RelativePosition>().value, *testElement))
+				{
+					hoveredElement = testElement.get();
+					//std::cout << "Overlapping first element\n";
+				}
+				if(IsOverlapping(mouseDebug->GetFramePositionAs<DeluEngine::GUI::RelativePosition>().value, *testElement2))
+				{
+					hoveredElement = testElement2.get();
+					//std::cout << "Overlapping second element\n";
+				}
+
+				if(hoveredElement != previousHoveredElement)
+				{
+					if(previousHoveredElement)
+					{
+						previousHoveredElement->HandleEvent(DeluEngine::GUI::MouseEvent{ DeluEngine::GUI::MouseEventType::Unoverlap, std::nullopt });
+					}
+					if(hoveredElement)
+					{
+						hoveredElement->HandleEvent(DeluEngine::GUI::MouseEvent{ DeluEngine::GUI::MouseEventType::Overlap, std::nullopt });
+					}
+				}
+
 				//mouseDebug->position.value = ;
 				//std::cout << mouseDebug->position.value.X() << ", " << mouseDebug->position.value.Y() << "\n";
 				//mouseDebug->position.value.X() /= static_cast<float>(engine.renderer.backend->GetOutputSize().X());
@@ -199,16 +237,26 @@ int main()
 			}
 			if(event.type == SDL2pp::EventType::SDL_MOUSEBUTTONDOWN)
 			{
+				pressed = true;
 				if(event.button.button == SDL_BUTTON_LEFT && hoveredElement)
 				{
-					std::cout << "Button clicked\n";
+					hoveredElement->HandleEvent(DeluEngine::GUI::MouseEvent{ DeluEngine::GUI::MouseEventType::Hover, DeluEngine::GUI::MouseClickType::Pressed });
+					initialPressedElement = hoveredElement;
+					//std::cout << "Button clicked\n";
 				}
 			}
 			if(event.type == SDL2pp::EventType::SDL_MOUSEBUTTONUP)
 			{
+				pressed = false;
 				if(event.button.button == SDL_BUTTON_LEFT && hoveredElement)
 				{
-					std::cout << "Button Released\n";
+					if(hoveredElement == initialPressedElement)
+					{
+						hoveredElement->HandleEvent(DeluEngine::GUI::MouseEvent{ DeluEngine::GUI::MouseEventType::Hover, DeluEngine::GUI::MouseClickType::Clicked });
+					}
+					hoveredElement->HandleEvent(DeluEngine::GUI::MouseEvent{ DeluEngine::GUI::MouseEventType::Hover, DeluEngine::GUI::MouseClickType::Released });
+					initialPressedElement = nullptr;
+					//std::cout << "Button Released\n";
 				}
 			}
 			engine.ProcessEvent(event);
@@ -218,6 +266,18 @@ int main()
 			engine.controllerContext.Execute(engine.controller);
 			timer.Tick([&](std::chrono::nanoseconds dt)
 				{
+					if(hoveredElement)
+					{
+						std::optional action = [pressed, previousPressed]() -> std::optional<DeluEngine::GUI::MouseClickType>
+							{
+								if(pressed && previousPressed)
+									return DeluEngine::GUI::MouseClickType::Held;
+								else
+									return std::nullopt;
+							}();
+						hoveredElement->HandleEvent(DeluEngine::GUI::MouseEvent{ DeluEngine::GUI::MouseEventType::Hover, action });
+					}
+					previousPressed = pressed;
 					//testElement->position.Y() = testElement->size.Y() * std::sin(accumulator.count());
 					//testElement->SetPivot({ testElement->GetPivot().X(), (std::sin(accumulator.count()) + 1) / 2 });
 					//testElement->SetLocalPosition(DeluEngine::GUI::RelativePosition{ { testElement->GetLocalPositionAs<DeluEngine::GUI::RelativePosition>().value.X(), (std::sin(accumulator.count()) + 1) / 2 } });
@@ -249,19 +309,6 @@ int main()
 				//engine.renderer.backend->Copy(testFontTexture, std::nullopt, textLocation);
 				
 				DrawFrame(engine.renderer, frame);
-
-				hoveredElement = nullptr;
-
-				if(IsOverlapping(mouseDebug->GetFramePositionAs<DeluEngine::GUI::RelativePosition>().value, *testElement))
-				{
-					hoveredElement = testElement.get();
-					//std::cout << "Overlapping first element\n";
-				}
-				if(IsOverlapping(mouseDebug->GetFramePositionAs<DeluEngine::GUI::RelativePosition>().value, *testElement2))
-				{
-					hoveredElement = testElement2.get();
-					//std::cout << "Overlapping second element\n";
-				}
 			}
 
 			engine.renderer.backend->Present();
