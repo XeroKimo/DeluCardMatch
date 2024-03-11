@@ -29,25 +29,25 @@ namespace xk::Math
 	template<class Ty>
 	bool Inclusive<Ty>::operator()(const Ty& compare, const Inclusive<Ty>& max) const noexcept
 	{
-		return value >= compare && compare <= max.value;
+		return value <= compare && compare <= max.value;
 	}
 
 	template<class Ty>
 	bool Inclusive<Ty>::operator()(const Ty& compare, const Exclusive<Ty>& max) const noexcept
 	{
-		return value >= compare && compare < max.value;
+		return value <= compare && compare < max.value;
 	}
 
 	template<class Ty>
 	bool Exclusive<Ty>::operator()(const Ty& compare, const Inclusive<Ty>& max) const noexcept
 	{
-		return value > compare && compare <= max.value;
+		return value < compare && compare <= max.value;
 	}
 
 	template<class Ty>
 	bool Exclusive<Ty>::operator()(const Ty& compare, const Exclusive<Ty>& max) const noexcept
 	{
-		return value > compare && compare < max.value;
+		return value < compare && compare < max.value;
 	}
 
 	export template<class Ty>

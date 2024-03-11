@@ -301,7 +301,7 @@ namespace DeluEngine::GUI
 		//AbsolutePosition frameCursorPosition;
 
 		static constexpr int handledCode = 0;
-		static constexpr int unhandledCode = 0;
+		static constexpr int unhandledCode = 1;
 	};
 
 	export using Event = std::variant<MouseEvent>;
@@ -352,6 +352,7 @@ namespace DeluEngine::GUI
 
 	public:
 		std::string debugName;
+		bool debugEnableRaytrace = true;
 		SDL2pp::shared_ptr<SDL2pp::Texture> texture;
 
 	public:

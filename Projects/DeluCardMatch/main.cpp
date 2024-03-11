@@ -87,6 +87,38 @@ void DrawFrame(DeluEngine::Renderer& renderer, DeluEngine::GUI::UIFrame& frame)
 	renderer.backend->Copy(frame.internalTexture.get(), std::nullopt, std::optional<SDL2pp::Rect>(std::nullopt));
 }
 
+DeluEngine::GUI::UIElement* GetHoveredElement(DeluEngine::GUI::UIElement& element, DeluEngine::GUI::AbsolutePosition mousePos)
+{
+	std::vector<DeluEngine::GUI::UIElement*> children = element.GetChildren();
+	for(DeluEngine::GUI::UIElement* child : children)
+	{
+		if(auto hoveredElement = GetHoveredElement(*child, mousePos); hoveredElement)
+			return hoveredElement;
+	}
+
+	if(!element.debugEnableRaytrace)
+		return nullptr;
+
+	if(element.GetRect().Overlaps(mousePos))
+	{
+		return &element;
+	}
+	return nullptr;
+}
+
+DeluEngine::GUI::UIElement* GetHoveredElement(DeluEngine::GUI::UIFrame& frame, DeluEngine::GUI::AbsolutePosition mousePos)
+{
+	std::vector<DeluEngine::GUI::UIElement*> children = frame.GetRootElements();
+	for(auto elm = children.rbegin(); elm != children.rend(); elm++)
+	{
+		auto child = *elm;
+		if(auto hoveredElement = GetHoveredElement(*child, mousePos); hoveredElement)
+			return hoveredElement;
+	}
+
+	return nullptr;
+}
+
 int main()
 {
 	ApplicationTimer timer;
@@ -176,6 +208,7 @@ int main()
 	{
 		mouseDebug->texture = engine.renderer.backend->CreateTexture(SDL_PIXELFORMAT_RGBA32, static_cast<SDL2pp::TextureAccess>(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET), 8, 8);
 	};
+	mouseDebug->debugEnableRaytrace = false;
 	engine.renderer.backend->SetRenderTarget(mouseDebug->texture.get());
 	engine.renderer.backend->SetDrawColor(SDL2pp::Color{ 255, 0, 0, 255 });
 
@@ -201,39 +234,6 @@ int main()
 			if(event.type == SDL2pp::EventType::SDL_MOUSEMOTION)
 			{
 				mouseDebug->SetLocalPosition(DeluEngine::GUI::RelativePosition{ xk::Math::HadamardDivision(Vector2{ event.motion.x, engine.renderer.backend->GetOutputSize().Y() - event.motion.y }, engine.renderer.backend->GetOutputSize()) });
-				
-				//TODO: Currently hovered element detection is only working on mouse movement, it's possible that elements can move by themselves and no longer overlap with the cursor.
-				//This scenario likely won't occur during card match game but a note for reminder
-				previousHoveredElement = hoveredElement;
-				hoveredElement = nullptr;
-
-				if(IsOverlapping(mouseDebug->GetFramePositionAs<DeluEngine::GUI::RelativePosition>().value, *testElement))
-				{
-					hoveredElement = testElement.get();
-					//std::cout << "Overlapping first element\n";
-				}
-				if(IsOverlapping(mouseDebug->GetFramePositionAs<DeluEngine::GUI::RelativePosition>().value, *testElement2))
-				{
-					hoveredElement = testElement2.get();
-					//std::cout << "Overlapping second element\n";
-				}
-
-				if(hoveredElement != previousHoveredElement)
-				{
-					if(previousHoveredElement)
-					{
-						previousHoveredElement->HandleEvent(DeluEngine::GUI::MouseEvent{ DeluEngine::GUI::MouseEventType::Unoverlap, std::nullopt });
-					}
-					if(hoveredElement)
-					{
-						hoveredElement->HandleEvent(DeluEngine::GUI::MouseEvent{ DeluEngine::GUI::MouseEventType::Overlap, std::nullopt });
-					}
-				}
-
-				//mouseDebug->position.value = ;
-				//std::cout << mouseDebug->position.value.X() << ", " << mouseDebug->position.value.Y() << "\n";
-				//mouseDebug->position.value.X() /= static_cast<float>(engine.renderer.backend->GetOutputSize().X());
-				//mouseDebug->position.value.Y() /= static_cast<float>(engine.renderer.backend->GetOutputSize().Y());
 			}
 			if(event.type == SDL2pp::EventType::SDL_MOUSEBUTTONDOWN)
 			{
@@ -264,6 +264,22 @@ int main()
 		else
 		{
 			engine.controllerContext.Execute(engine.controller);
+			previousHoveredElement = hoveredElement;
+			hoveredElement = GetHoveredElement(frame, mouseDebug->GetFramePositionAs<DeluEngine::GUI::AbsolutePosition>());
+
+
+			if(hoveredElement != previousHoveredElement)
+			{
+				if(previousHoveredElement)
+				{
+					previousHoveredElement->HandleEvent(DeluEngine::GUI::MouseEvent{ DeluEngine::GUI::MouseEventType::Unoverlap, std::nullopt });
+				}
+				if(hoveredElement)
+				{
+					hoveredElement->HandleEvent(DeluEngine::GUI::MouseEvent{ DeluEngine::GUI::MouseEventType::Overlap, std::nullopt });
+				}
+			}
+
 			timer.Tick([&](std::chrono::nanoseconds dt)
 				{
 					if(hoveredElement)
@@ -283,7 +299,7 @@ int main()
 					//testElement->SetLocalPosition(DeluEngine::GUI::RelativePosition{ { testElement->GetLocalPositionAs<DeluEngine::GUI::RelativePosition>().value.X(), (std::sin(accumulator.count()) + 1) / 2 } });
 					//testElement->SetLocalPosition(DeluEngine::GUI::RelativePosition{ { (std::sin(accumulator.count()) + 1) / 2, testElement->GetLocalPositionAs<DeluEngine::GUI::RelativePosition>().value.Y() } });
 					testElement3->SetFramePosition(DeluEngine::GUI::RelativePosition{ { 0.5f, (std::sin(accumulator.count()) + 1) / 2 } });
-					testElement2->SetPivot({ testElement->GetPivot().X(), (std::sin(accumulator.count()) + 1) / 2 });
+					//testElement2->SetPivot({ testElement->GetPivot().X(), (std::sin(accumulator.count()) + 1) / 2 });
 					//std::cout << testElement->GetPivot().Y() << "\n";
 					std::chrono::duration<float> deltaTime = std::chrono::duration_cast<std::chrono::duration<float>>(dt);
 					static constexpr std::chrono::duration<float> physicsStep{ 1.f / 60.f };

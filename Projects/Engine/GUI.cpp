@@ -20,6 +20,9 @@ namespace DeluEngine::GUI
 			using underlying_type = std::remove_cvref_t<decltype(underlyingEvent)>;
 			if constexpr(std::same_as<underlying_type, MouseEvent>)
 			{
+				if(!debugEnableRaytrace)
+					return underlyingEvent.unhandledCode;
+
 				//underlyingEvent.renderer->backend->CopyEx(texture.get(), std::nullopt, GUI::GetRect(*this), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
 				if(underlyingEvent.type == MouseEventType::Overlap)
 				{
@@ -33,6 +36,7 @@ namespace DeluEngine::GUI
 				else if(underlyingEvent.type == MouseEventType::Hover && oneTimeHoverCheck)
 				{
 					std::cout << "Hover: " << debugName << "\n";
+					oneTimeHeldCheck = true;
 					oneTimeHoverCheck = false;
 				}
 
