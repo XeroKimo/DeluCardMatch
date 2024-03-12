@@ -12,6 +12,7 @@ import :Renderer;
 import :ECS;
 import :Controller;
 import :Physics;
+import :GUI;
 import SDL2pp;
 import xk.Math.Matrix;
 
@@ -82,6 +83,7 @@ namespace DeluEngine
 		Renderer renderer;
 		Controller controller;
 		Experimental::ControllerContextManager controllerContext;
+		GUI::GUIEngine guiEngine;
 		b2World physicsWorld{ {0, -9.8f } };
 		std::unique_ptr<Scene> scene;
 		Box2DCallbacks box2DCallbacks;

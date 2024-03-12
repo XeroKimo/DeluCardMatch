@@ -4,6 +4,7 @@ module;
 #include <variant>
 #include <concepts>
 #include <iostream>
+#include <SDL2/SDL.h>
 
 module DeluEngine:GUI;
 import :Renderer;
@@ -142,6 +143,46 @@ namespace DeluEngine::GUI
 			SetLocalPosition(oldPosition);
 			break;
 		}
+		}
+	}
+
+	void ProcessEvent(GUIEngine& engine, const SDL2pp::Event& event, Vector2 windowSize)
+	{
+		switch(event.type)
+		{
+		case SDL2pp::EventType::SDL_MOUSEMOTION:
+		{
+			engine.mousePosition.value = Vector2{ event.motion.x, windowSize.Y() - event.motion.y };
+			break;
+		}
+		case SDL2pp::EventType::SDL_MOUSEBUTTONDOWN:
+		{
+			if(event.button.button == SDL_BUTTON_LEFT && engine.hoveredElement)
+			{
+				engine.leftClickPressed = true;
+				engine.hoveredElement->HandleEvent(DeluEngine::GUI::MouseEvent{ DeluEngine::GUI::MouseEventType::Hover, DeluEngine::GUI::MouseClickType::Pressed });
+				engine.initialLeftClickedElement = engine.hoveredElement;
+				//std::cout << "Button clicked\n";
+			}
+			break;
+		}
+		case SDL2pp::EventType::SDL_MOUSEBUTTONUP:
+		{
+			if(event.button.button == SDL_BUTTON_LEFT && engine.hoveredElement)
+			{
+				engine.leftClickPressed = false;
+				if(engine.hoveredElement == engine.initialLeftClickedElement)
+				{
+					engine.hoveredElement->HandleEvent(DeluEngine::GUI::MouseEvent{ DeluEngine::GUI::MouseEventType::Hover, DeluEngine::GUI::MouseClickType::Clicked });
+				}
+				engine.hoveredElement->HandleEvent(DeluEngine::GUI::MouseEvent{ DeluEngine::GUI::MouseEventType::Hover, DeluEngine::GUI::MouseClickType::Released });
+				engine.initialLeftClickedElement = nullptr;
+				//std::cout << "Button Released\n";
+			}
+			break;
+		}
+		default:
+			break;
 		}
 	}
 }

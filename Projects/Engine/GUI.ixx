@@ -564,4 +564,82 @@ namespace DeluEngine::GUI
 	{
 		return std::make_unique<UIElement>(*this, position, size, pivot, parent);
 	}
+
+	DeluEngine::GUI::UIElement* GetHoveredElement(DeluEngine::GUI::UIElement& element, DeluEngine::GUI::AbsolutePosition mousePos)
+	{
+		std::vector<DeluEngine::GUI::UIElement*> children = element.GetChildren();
+		for(DeluEngine::GUI::UIElement* child : children)
+		{
+			if(auto hoveredElement = GetHoveredElement(*child, mousePos); hoveredElement)
+				return hoveredElement;
+		}
+
+		if(!element.debugEnableRaytrace)
+			return nullptr;
+
+		if(element.GetRect().Overlaps(mousePos))
+		{
+			return &element;
+		}
+		return nullptr;
+	}
+
+	DeluEngine::GUI::UIElement* GetHoveredElement(DeluEngine::GUI::UIFrame& frame, DeluEngine::GUI::AbsolutePosition mousePos)
+	{
+		std::vector<DeluEngine::GUI::UIElement*> children = frame.GetRootElements();
+		for(auto elm = children.rbegin(); elm != children.rend(); elm++)
+		{
+			auto child = *elm;
+			if(auto hoveredElement = GetHoveredElement(*child, mousePos); hoveredElement)
+				return hoveredElement;
+		}
+
+		return nullptr;
+	}
+
+	export struct GUIEngine
+	{
+		bool leftClickPressed = false;
+		bool previousLeftClickPressed = false;
+		AbsolutePosition mousePosition;
+		std::vector<UIFrame> frames;
+		UIElement* hoveredElement = nullptr;
+		UIElement* previousHoveredElement = nullptr;
+		UIElement* initialLeftClickedElement = nullptr;
+
+		void UpdateHoveredElement()
+		{
+			previousHoveredElement = hoveredElement;
+			hoveredElement = GetHoveredElement(frames.back(), mousePosition);
+			if(hoveredElement != previousHoveredElement)
+			{
+				if(previousHoveredElement)
+				{
+					previousHoveredElement->HandleEvent(DeluEngine::GUI::MouseEvent{ DeluEngine::GUI::MouseEventType::Unoverlap, std::nullopt });
+				}
+				if(hoveredElement)
+				{
+					hoveredElement->HandleEvent(DeluEngine::GUI::MouseEvent{ DeluEngine::GUI::MouseEventType::Overlap, std::nullopt });
+				}
+			}
+		}
+
+		void DispatchHoveredEvent()
+		{
+			if(hoveredElement)
+			{
+				std::optional action = [this]() -> std::optional<DeluEngine::GUI::MouseClickType>
+					{
+						if(leftClickPressed && previousLeftClickPressed)
+							return DeluEngine::GUI::MouseClickType::Held;
+						else
+							return std::nullopt;
+					}();
+					hoveredElement->HandleEvent(DeluEngine::GUI::MouseEvent{ DeluEngine::GUI::MouseEventType::Hover, action });
+			}
+			previousLeftClickPressed = leftClickPressed;
+		}
+	};
+
+	export void ProcessEvent(GUIEngine& engine, const SDL2pp::Event& event, Vector2 windowSize);
 }
