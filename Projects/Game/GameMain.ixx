@@ -23,9 +23,12 @@ export auto TestSceneMain()
 {
 	return [](ECS::Scene& s)
 	{
+		DeluEngine::Scene& scene = static_cast<DeluEngine::Scene&>(s);
+		DeluEngine::SceneGUISystem& gui = scene.CreateSystem<DeluEngine::SceneGUISystem>();
+
 		DeluEngine::Engine& engine = static_cast<DeluEngine::Scene&>(s).GetEngine();
-		engine.guiEngine.frames.push_back({});
-		DeluEngine::GUI::UIFrame& frame = engine.guiEngine.frames.back();
+		//engine.guiEngine.frames.push_back({});
+		DeluEngine::GUI::UIFrame& frame = gui.NewPersistentFrame();
 		frame.internalTexture = engine.renderer.backend->CreateTexture(
 			SDL_PIXELFORMAT_RGBA32,
 			SDL2pp::TextureAccess(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET),
@@ -39,7 +42,9 @@ export auto TestSceneMain()
 		SDL_Texture* testFontTexture = SDL_CreateTextureFromSurface(engine.renderer.backend.get(), testFontSurface);
 		SDL_Surface* testSurface = IMG_Load("Cards/syobontaya.png");
 
-		static std::unique_ptr<DeluEngine::GUI::UIElement> testElement = frame.NewElement({}, {}, {}, nullptr);
+		std::unique_ptr<DeluEngine::GUI::UIElement> temp = frame.NewElement({}, {}, {}, nullptr);
+		DeluEngine::GUI::UIElement* testElement = temp.get();
+		gui.AddPersistentElement(std::move(temp));
 		testElement->debugName = "One";
 		testElement->SetPositionRepresentation(DeluEngine::GUI::RelativePosition{ { 0.0f, 0.5f } });
 		testElement->SetSizeRepresentation(DeluEngine::GUI::RelativeSize({ 0.5f, 0.5f }));
@@ -48,7 +53,10 @@ export auto TestSceneMain()
 		testElement->ConvertUnderlyingPositionRepresentation<DeluEngine::GUI::AbsolutePosition>();
 		testElement->ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::AbsoluteSize>();
 		testElement->ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::RelativeSize>();
-		static std::unique_ptr<DeluEngine::GUI::UIElement> testElement2 = frame.NewElement(testElement->GetFramePositionAs<DeluEngine::GUI::RelativePosition>(), testElement->GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement->GetPivot(), nullptr);
+
+		temp = frame.NewElement(testElement->GetFramePositionAs<DeluEngine::GUI::RelativePosition>(), testElement->GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement->GetPivot(), nullptr);
+		DeluEngine::GUI::UIElement* testElement2 = temp.get();
+		gui.AddPersistentElement(std::move(temp));
 		testElement2->debugName = "Two";
 		testElement2->texture = testElement->texture;
 		testElement2->SetPivot({ 0.5f, 0.5f });
@@ -56,7 +64,7 @@ export auto TestSceneMain()
 		//testElement2->SetSizeRepresentation(BorderConstantRelativeSize({ 0.8f, 0.8f }));
 		testElement2->SetLocalPosition(DeluEngine::GUI::RelativePosition{ { 0.85f, 0.5f } });
 		testElement2->SetSizeRepresentation(DeluEngine::GUI::AspectRatioRelativeSize{ .ratio = -9.f / 16.f, .value = 0.5f });
-		testElement2->SetParent(testElement.get(), DeluEngine::GUI::UIReparentLogic::KeepAbsoluteTransform);
+		testElement2->SetParent(testElement, DeluEngine::GUI::UIReparentLogic::KeepAbsoluteTransform);
 		//testElement2->SetLocalPosition(DeluEngine::GUI::ConvertPivotEquivalentRelativePosition(testElement2->GetPivot(), { 0, 0 }, testElement2->GetLocalPositionAs<DeluEngine::GUI::RelativePosition>(), testElement2->GetLocalSizeAs<DeluEngine::GUI::RelativeSize>(), testElement2->GetParentAbsoluteSize()));
 
 		//testElement2->SetPivot({ 0.0f, 0.0f });
@@ -75,7 +83,9 @@ export auto TestSceneMain()
 		//testElement2->position = ConvertPivotEquivalentPosition(testElement2->m_pivot, testElement->m_pivot, testElement2->position, testElement2->GetRelativeSizeToParent(), frame.size);
 		//testElement2->pivot = testElement->pivot;
 
-		static std::unique_ptr<DeluEngine::GUI::UIElement> testElement3 = frame.NewElement(testElement->GetFramePositionAs<DeluEngine::GUI::RelativePosition>(), testElement->GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement->GetPivot(), testElement2.get());
+		temp = frame.NewElement(testElement->GetFramePositionAs<DeluEngine::GUI::RelativePosition>(), testElement->GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement->GetPivot(), testElement2);
+		DeluEngine::GUI::UIElement* testElement3 = temp.get();
+		gui.AddPersistentElement(std::move(temp));
 
 		testElement3->debugName = "Three";
 		testElement3->texture = testElement->texture;

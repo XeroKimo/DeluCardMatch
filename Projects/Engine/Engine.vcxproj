@@ -22,6 +22,7 @@
     <ClCompile Include="Components\SpriteComponent.ixx" />
     <ClCompile Include="Controller.ixx" />
     <ClCompile Include="DeluEngine.ixx" />
+    <ClCompile Include="ECS.cpp" />
     <ClCompile Include="ECS.ixx" />
     <ClCompile Include="Engine.ixx" />
     <ClCompile Include="EngineAware.ixx" />

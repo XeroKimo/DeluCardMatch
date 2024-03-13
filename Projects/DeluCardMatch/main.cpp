@@ -150,7 +150,7 @@ int main()
 				//SDL_Rect textLocation = { 400, 200, testFontSurface->w, testFontSurface->h };
 				//engine.renderer.backend->Copy(testFontTexture, std::nullopt, textLocation);
 				
-				DrawFrame(engine.renderer, engine.guiEngine.frames.back());
+				DrawFrame(engine.renderer, *engine.guiEngine.frames.back());
 			}
 
 			engine.renderer.backend->Present();

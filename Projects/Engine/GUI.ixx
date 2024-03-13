@@ -381,6 +381,7 @@ namespace DeluEngine::GUI
 				m_children.back()->SetParent(m_parent, UIReparentLogic::KeepAbsoluteTransform);
 			}
 			SetParent(nullptr);
+			std::erase(m_ownerFrame->m_rootElements, this);
 		}
 
 		UIElement& operator=(UIElement&&) noexcept = default;
@@ -602,7 +603,7 @@ namespace DeluEngine::GUI
 		bool leftClickPressed = false;
 		bool previousLeftClickPressed = false;
 		AbsolutePosition mousePosition;
-		std::vector<UIFrame> frames;
+		std::vector<UIFrame*> frames;
 		UIElement* hoveredElement = nullptr;
 		UIElement* previousHoveredElement = nullptr;
 		UIElement* initialLeftClickedElement = nullptr;
@@ -610,7 +611,7 @@ namespace DeluEngine::GUI
 		void UpdateHoveredElement()
 		{
 			previousHoveredElement = hoveredElement;
-			hoveredElement = GetHoveredElement(frames.back(), mousePosition);
+			hoveredElement = GetHoveredElement(*frames.back(), mousePosition);
 			if(hoveredElement != previousHoveredElement)
 			{
 				if(previousHoveredElement)
