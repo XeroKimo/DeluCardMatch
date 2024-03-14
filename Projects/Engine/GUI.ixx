@@ -14,6 +14,11 @@ import xk.Math.Matrix;
 import xk.Math.Algorithms;
 import SDL2pp;
 
+namespace DeluEngine
+{
+	export class Renderer;
+}
+
 namespace DeluEngine::GUI
 {
 	using namespace xk::Math::Aliases;
@@ -304,7 +309,12 @@ namespace DeluEngine::GUI
 		static constexpr int unhandledCode = 1;
 	};
 
-	export using Event = std::variant<MouseEvent>;
+	export struct DrawEvent
+	{
+		DeluEngine::Renderer* renderer;
+	};
+
+	export using Event = std::variant<MouseEvent, DrawEvent>;
 
 	export class UIElement;
 
@@ -319,7 +329,11 @@ namespace DeluEngine::GUI
 		SDL2pp::unique_ptr<SDL2pp::Texture> internalTexture;
 		Vector2 GetSize() const noexcept { return internalTexture->GetSize(); }
 
-		std::unique_ptr<UIElement> NewElement(PositionVariant position, SizeVariant size, Vector2 pivot, UIElement* parent = nullptr);
+		template<std::derived_from<UIElement> Ty, class... ExtraConstructorParams>
+		std::unique_ptr<Ty> NewElement(PositionVariant position, SizeVariant size, Vector2 pivot, UIElement* parent = nullptr, ExtraConstructorParams&&... params) 
+		{
+			return std::make_unique<Ty>(*this, position, size, pivot, parent, std::forward<ExtraConstructorParams>(params)...);
+		}
 
 		const std::vector<UIElement*>& GetRootElements() const noexcept { return m_rootElements; }
 	};
@@ -353,7 +367,6 @@ namespace DeluEngine::GUI
 	public:
 		std::string debugName;
 		bool debugEnableRaytrace = true;
-		SDL2pp::shared_ptr<SDL2pp::Texture> texture;
 
 	public:
 		UIElement(UIFrame& ownerFrame) :
@@ -372,9 +385,10 @@ namespace DeluEngine::GUI
 			SetParent(parent);
 		}
 
+		UIElement(const UIElement&) = delete;
 		UIElement(UIElement&&) noexcept = default;
 
-		~UIElement()
+		virtual ~UIElement()
 		{
 			while(!m_children.empty())
 			{
@@ -384,6 +398,7 @@ namespace DeluEngine::GUI
 			std::erase(m_ownerFrame->m_rootElements, this);
 		}
 
+		UIElement& operator=(const UIElement&) = delete;
 		UIElement& operator=(UIElement&&) noexcept = default;
 
 	public:
@@ -561,10 +576,31 @@ namespace DeluEngine::GUI
 		const UIFrame& GetFrame() const { return *m_ownerFrame; }
 	};
 
-	std::unique_ptr<UIElement> UIFrame::NewElement(PositionVariant position, SizeVariant size, Vector2 pivot, UIElement* parent)
+	export class Image : public UIElement
 	{
-		return std::make_unique<UIElement>(*this, position, size, pivot, parent);
-	}
+	public:
+		SDL2pp::shared_ptr<SDL2pp::Texture> texture;
+
+	public:
+		Image(UIFrame& ownerFrame) :
+			UIElement{ ownerFrame }
+		{
+
+		}
+
+		Image(UIFrame& ownerFrame, PositionVariant position, SizeVariant size, Vector2 pivot, UIElement* parent = nullptr, SDL2pp::shared_ptr<SDL2pp::Texture> texture = nullptr) :
+			UIElement{ ownerFrame, position, size, pivot, parent },
+			texture{ texture }
+		{
+		}
+
+		virtual int HandleEvent(const Event& event);
+	};
+
+	//std::unique_ptr<UIElement> UIFrame::NewElement(PositionVariant position, SizeVariant size, Vector2 pivot, UIElement* parent)
+	//{
+	//	return std::make_unique<UIElement>(*this, position, size, pivot, parent);
+	//}
 
 	DeluEngine::GUI::UIElement* GetHoveredElement(DeluEngine::GUI::UIElement& element, DeluEngine::GUI::AbsolutePosition mousePos)
 	{

@@ -9,6 +9,7 @@ module;
 #include <string_view>
 #include <functional>
 #include <SDL2/SDL_ttf.h>
+#include <span>
 
 export module DeluEngine:Renderer;
 export import SDL2pp;
@@ -111,16 +112,6 @@ namespace DeluEngine
 			TTF_Init();
 		}
 
-		void Render()
-		{
-			backend->SetDrawColor(clearColor);
-			backend->Clear();
-
-			DrawSprites();
-			DebugRenderer debugRenderer{ GetDebugRenderer() };
-			for (auto& callback : debugCallbacks) { callback(debugRenderer); }
-		}
-
 		SpriteHandle CreateSprite(std::shared_ptr<SpriteData> spriteData)
 		{
 			SpriteHandle sprite{ new Sprite(this, spriteData ? std::move(spriteData) : defaultSpriteData), SpriteDeleter{this} };
@@ -133,21 +124,9 @@ namespace DeluEngine
 			return { backend.get() };
 		}
 
+		std::span<Sprite*> GetSprites() { return m_sprites; }
+
 	private:
-		void DrawSprites()
-		{
-			iVector2 outputSize = backend->GetOutputSize();
-			for (const auto& sprite : m_sprites)
-			{
-				SDL2pp::Rect sourceRect = sprite->GetSpriteData()->drawRect;
-				SDL2pp::FRect destRect;
-				destRect.w = static_cast<float>(sourceRect.w);
-				destRect.h = static_cast<float>(sourceRect.h);
-				destRect.x = sprite->position.X();
-				destRect.y = -sprite->position.Y() + outputSize.Y();
-				backend->CopyEx(sprite->GetSpriteData()->texture.get(), sourceRect, destRect, sprite->angle._value, std::nullopt, SDL2pp::RendererFlip::SDL_FLIP_NONE);
-			}
-		}		
 		
 		void DeleteSprite(Sprite* sprite)
 		{

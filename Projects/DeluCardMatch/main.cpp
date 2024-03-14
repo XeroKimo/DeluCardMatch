@@ -2,6 +2,7 @@
 #include <iostream>
 #include <chrono>
 #include <box2d/box2d.h>
+#include <span>
 
 import DeluEngine;
 import xk.Math.Matrix;
@@ -52,7 +53,8 @@ SDL2pp::FRect GetRect(const DeluEngine::GUI::UIElement& element)
 
 void DrawElement(DeluEngine::Renderer& renderer, DeluEngine::GUI::UIElement& element)
 {
-	renderer.backend->CopyEx(element.texture.get(), std::nullopt, GetRect(element), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+	element.HandleEvent(DeluEngine::GUI::DrawEvent{ &renderer });
+	//renderer.backend->CopyEx(element.texture.get(), std::nullopt, GetRect(element), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
 
 	std::vector<DeluEngine::GUI::UIElement*> children = element.GetChildren();
 	for(DeluEngine::GUI::UIElement* child : children)
@@ -77,6 +79,7 @@ void DrawFrame(DeluEngine::Renderer& renderer, DeluEngine::GUI::UIFrame& frame)
 	renderer.backend->Copy(frame.internalTexture.get(), std::nullopt, std::optional<SDL2pp::Rect>(std::nullopt));
 }
 
+void Render(DeluEngine::Engine& engine);
 
 int main()
 {
@@ -120,13 +123,7 @@ int main()
 				{
 					engine.guiEngine.UpdateHoveredElement();
 					engine.guiEngine.DispatchHoveredEvent();
-					//testElement->position.Y() = testElement->size.Y() * std::sin(accumulator.count());
-					//testElement->SetPivot({ testElement->GetPivot().X(), (std::sin(accumulator.count()) + 1) / 2 });
-					//testElement->SetLocalPosition(DeluEngine::GUI::RelativePosition{ { testElement->GetLocalPositionAs<DeluEngine::GUI::RelativePosition>().value.X(), (std::sin(accumulator.count()) + 1) / 2 } });
-					//testElement->SetLocalPosition(DeluEngine::GUI::RelativePosition{ { (std::sin(accumulator.count()) + 1) / 2, testElement->GetLocalPositionAs<DeluEngine::GUI::RelativePosition>().value.Y() } });
-					//testElement3->SetFramePosition(DeluEngine::GUI::RelativePosition{ { 0.5f, (std::sin(accumulator.count()) + 1) / 2 } });
-					//testElement2->SetPivot({ testElement->GetPivot().X(), (std::sin(accumulator.count()) + 1) / 2 });
-					//std::cout << testElement->GetPivot().Y() << "\n";
+
 					std::chrono::duration<float> deltaTime = std::chrono::duration_cast<std::chrono::duration<float>>(dt);
 					static constexpr std::chrono::duration<float> physicsStep{ 1.f / 60.f };
 					physicsAccumulator += deltaTime;
@@ -143,19 +140,48 @@ int main()
 
 			engine.controller.SwapBuffers();
 
-			engine.renderer.Render();
-			{
+			Render(engine);
 
-				////Formerly drawn within a frame
-				//SDL_Rect textLocation = { 400, 200, testFontSurface->w, testFontSurface->h };
-				//engine.renderer.backend->Copy(testFontTexture, std::nullopt, textLocation);
-				
-				DrawFrame(engine.renderer, *engine.guiEngine.frames.back());
-			}
-
-			engine.renderer.backend->Present();
+			//	////Formerly drawn within a frame
+			//	//SDL_Rect textLocation = { 400, 200, testFontSurface->w, testFontSurface->h };
+			//	//engine.renderer.backend->Copy(testFontTexture, std::nullopt, textLocation);
 		}
 	}
 
 	return 0;
+}
+
+void DrawSprites(DeluEngine::Renderer& renderer, std::span<DeluEngine::Sprite*> sprites);
+
+void Render(DeluEngine::Engine& engine)
+{
+	engine.renderer.backend->SetDrawColor(engine.renderer.clearColor);
+	engine.renderer.backend->Clear();
+	DrawSprites(engine.renderer, engine.renderer.GetSprites());
+
+	for(auto frame : engine.guiEngine.frames)
+	{
+		DrawFrame(engine.renderer, *frame);
+	}
+
+	for(DeluEngine::DebugRenderer debugRenderer{ engine.renderer.GetDebugRenderer() }; auto& callback : engine.renderer.debugCallbacks)
+	{ 
+		callback(debugRenderer); 
+	}
+	engine.renderer.backend->Present();
+}
+
+void DrawSprites(DeluEngine::Renderer& renderer, std::span<DeluEngine::Sprite*> sprites)
+{
+	iVector2 outputSize = renderer.backend->GetOutputSize();
+	for(const DeluEngine::Sprite* sprite : sprites)
+	{
+		SDL2pp::Rect sourceRect = sprite->GetSpriteData()->drawRect;
+		SDL2pp::FRect destRect;
+		destRect.w = static_cast<float>(sourceRect.w);
+		destRect.h = static_cast<float>(sourceRect.h);
+		destRect.x = sprite->position.X();
+		destRect.y = -sprite->position.Y() + outputSize.Y();
+		renderer.backend->CopyEx(sprite->GetSpriteData()->texture.get(), sourceRect, destRect, sprite->angle._value, std::nullopt, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+	}
 }

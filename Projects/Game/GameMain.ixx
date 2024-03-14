@@ -42,8 +42,8 @@ export auto TestSceneMain()
 		SDL_Texture* testFontTexture = SDL_CreateTextureFromSurface(engine.renderer.backend.get(), testFontSurface);
 		SDL_Surface* testSurface = IMG_Load("Cards/syobontaya.png");
 
-		std::unique_ptr<DeluEngine::GUI::UIElement> temp = frame.NewElement({}, {}, {}, nullptr);
-		DeluEngine::GUI::UIElement* testElement = temp.get();
+		std::unique_ptr<DeluEngine::GUI::Image> temp = frame.NewElement<DeluEngine::GUI::Image>({}, {}, {}, nullptr, nullptr);
+		DeluEngine::GUI::Image* testElement = temp.get();
 		gui.AddPersistentElement(std::move(temp));
 		testElement->debugName = "One";
 		testElement->SetPositionRepresentation(DeluEngine::GUI::RelativePosition{ { 0.0f, 0.5f } });
@@ -54,8 +54,8 @@ export auto TestSceneMain()
 		testElement->ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::AbsoluteSize>();
 		testElement->ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::RelativeSize>();
 
-		temp = frame.NewElement(testElement->GetFramePositionAs<DeluEngine::GUI::RelativePosition>(), testElement->GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement->GetPivot(), nullptr);
-		DeluEngine::GUI::UIElement* testElement2 = temp.get();
+		temp = frame.NewElement<DeluEngine::GUI::Image>(testElement->GetFramePositionAs<DeluEngine::GUI::RelativePosition>(), testElement->GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement->GetPivot(), nullptr, nullptr);
+		DeluEngine::GUI::Image* testElement2 = temp.get();
 		gui.AddPersistentElement(std::move(temp));
 		testElement2->debugName = "Two";
 		testElement2->texture = testElement->texture;
@@ -83,8 +83,8 @@ export auto TestSceneMain()
 		//testElement2->position = ConvertPivotEquivalentPosition(testElement2->m_pivot, testElement->m_pivot, testElement2->position, testElement2->GetRelativeSizeToParent(), frame.size);
 		//testElement2->pivot = testElement->pivot;
 
-		temp = frame.NewElement(testElement->GetFramePositionAs<DeluEngine::GUI::RelativePosition>(), testElement->GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement->GetPivot(), testElement2);
-		DeluEngine::GUI::UIElement* testElement3 = temp.get();
+		temp = frame.NewElement<DeluEngine::GUI::Image>(testElement->GetFramePositionAs<DeluEngine::GUI::RelativePosition>(), testElement->GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement->GetPivot(), testElement2, nullptr);
+		DeluEngine::GUI::Image* testElement3 = temp.get();
 		gui.AddPersistentElement(std::move(temp));
 
 		testElement3->debugName = "Three";

@@ -146,6 +146,41 @@ namespace DeluEngine::GUI
 		}
 	}
 
+	static SDL2pp::FRect GetSDLRect(const DeluEngine::GUI::UIElement& element)
+	{
+		DeluEngine::GUI::Rect baseRect = element.GetRect();
+		SDL2pp::FRect rect;
+		const Vector2 size = element.GetFrameSizeAs<DeluEngine::GUI::AbsoluteSize>().value;
+		const Vector2 pivotOffsetFlip = { 0, size.Y() };
+		const Vector2 sdl2YFlip = { 0, element.GetFrame().GetSize().Y() };
+		const Vector2 position = xk::Math::HadamardProduct(baseRect.bottomLeft.value + pivotOffsetFlip, Vector2{ 1, -1 }) + sdl2YFlip;
+
+		rect.x = position.X();
+		rect.y = position.Y();
+		rect.w = size.X();
+		rect.h = size.Y();
+		return rect;
+	}
+
+	int Image::HandleEvent(const Event& event)
+	{
+		return std::visit([&, this](const auto& underlyingEvent) -> int
+			{
+				using underlying_type = std::remove_cvref_t<decltype(underlyingEvent)>;
+				if constexpr(std::same_as<underlying_type, DrawEvent>)
+				{
+					underlyingEvent.renderer->backend->CopyEx(texture.get(), std::nullopt, GetSDLRect(*this), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+
+					return defaultSuccessCode;
+				}
+				else
+				{
+					return UIElement::HandleEvent(event);
+				}
+				return defaultSuccessCode;
+			}, event);
+	}
+
 	void ProcessEvent(GUIEngine& engine, const SDL2pp::Event& event, Vector2 windowSize)
 	{
 		switch(event.type)
