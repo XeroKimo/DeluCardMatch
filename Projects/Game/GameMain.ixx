@@ -34,12 +34,6 @@ export auto TestSceneMain()
 			SDL2pp::TextureAccess(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET),
 			1600, 900);
 		frame.internalTexture->SetBlendMode(SDL_BLENDMODE_BLEND);
-
-		TTF_Font* testFont = TTF_OpenFont("Arial.ttf", 12);
-		//SDL_Surface* testFontSurface = TTF_RenderText_Solid(testFont, "Test test, 1. 2. 3", { 255, 255, 255 });
-		SDL_Surface* testFontSurface = TTF_RenderUTF8_Solid_Wrapped(testFont, "Test test, 1. 2. 3", { 255, 255, 255 }, 50);
-		//SDL_Surface* testFontSurface = TTF_RenderText_Shaded(testFont, "Test test, 1. 2. 3", { 255, 255, 255 }, { 0, 0, 0 });
-		SDL_Texture* testFontTexture = SDL_CreateTextureFromSurface(engine.renderer.backend.get(), testFontSurface);
 		SDL_Surface* testSurface = IMG_Load("Cards/syobontaya.png");
 
 		std::unique_ptr<DeluEngine::GUI::Image> temp = frame.NewElement<DeluEngine::GUI::Image>({}, {}, {}, nullptr, nullptr);
@@ -97,6 +91,20 @@ export auto TestSceneMain()
 		testElement3->SetLocalSize(DeluEngine::GUI::RelativeSize{ {0.5f, 0.5f} });
 		testElement3->SetLocalPosition(DeluEngine::GUI::RelativePosition{ { 0.5f, 0.5f } });
 
+
+
+
+		TTF_Font* testFont = TTF_OpenFont("Arial.ttf", 12);
+		//SDL_Surface* testFontSurface = TTF_RenderText_Solid(testFont, "Test test, 1. 2. 3", { 255, 255, 255 });
+		SDL_Surface* testFontSurface = TTF_RenderUTF8_Solid_Wrapped(testFont, "Test test, 1. 2. 3", { 255, 255, 255 }, 50);
+		//SDL_Surface* testFontSurface = TTF_RenderText_Shaded(testFont, "Test test, 1. 2. 3", { 255, 255, 255 }, { 0, 0, 0 });
+		SDL_Texture* testFontTexture = SDL_CreateTextureFromSurface(engine.renderer.backend.get(), testFontSurface);
+
+		auto temp3 = frame.NewElement<DeluEngine::GUI::Text>({}, DeluEngine::GUI::RelativeSize{ { 0.02f, 0.1f } }, {}, nullptr);
+		DeluEngine::GUI::Text* testElement4 = temp3.get();
+		gui.AddPersistentElement(std::move(temp3));
+		testElement4->SetFont(testFont);
+		testElement4->SetText("Hello World");
 		//std::chrono::duration<float> accumulator{ 0 };
 
 		//static std::unique_ptr<DeluEngine::GUI::UIElement> mouseDebug = frame.NewElement({}, {}, {}, nullptr);

@@ -5,6 +5,7 @@ module;
 #include <concepts>
 #include <iostream>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 
 module DeluEngine:GUI;
 import :Renderer;
@@ -198,6 +199,38 @@ namespace DeluEngine::GUI
 			}, event);
 	}
 
+	void Text::SetText(std::string_view text)
+	{
+		m_text = text;
+		m_dirty = true;
+	}
+
+	int DeluEngine::GUI::Text::HandleEvent(const Event& event)
+	{
+		return std::visit([&, this](const auto& underlyingEvent) -> int
+			{
+				using underlying_type = std::remove_cvref_t<decltype(underlyingEvent)>;
+				if constexpr(std::same_as<underlying_type, DrawEvent>)
+				{
+					if(m_dirty)
+					{
+						SDL_Surface* tempSurface = TTF_RenderUTF8_Solid_Wrapped(m_font, m_text.data(), { 255, 255, 255 }, GetFrameSizeAs<AbsoluteSize>().value.X());
+						m_texture = SDL_CreateTextureFromSurface(underlyingEvent.renderer->backend.get(), tempSurface);
+						m_textBounds.value = { tempSurface->w, tempSurface->h };
+						SDL_FreeSurface(tempSurface);
+						m_dirty = false;
+					}
+					auto rect = GetSDLRect(*this);
+					rect.w = m_textBounds.value.X();
+					rect.h = m_textBounds.value.Y();
+					underlyingEvent.renderer->backend->CopyEx(m_texture.get(), std::nullopt, rect, 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+
+					return defaultSuccessCode;
+				}
+
+				return UIElement::HandleEvent(event);
+			}, event);
+	}
 
 	void ProcessEvent(GUIEngine& engine, const SDL2pp::Event& event, Vector2 windowSize)
 	{

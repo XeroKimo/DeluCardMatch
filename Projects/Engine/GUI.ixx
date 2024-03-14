@@ -8,11 +8,14 @@ module;
 #include <optional>
 #include <memory>
 #include <string>
+#include <SDL2/SDL_ttf.h>
+#include <string_view>
 
 export module DeluEngine:GUI;
 import xk.Math.Matrix;
 import xk.Math.Algorithms;
 import SDL2pp;
+
 
 namespace DeluEngine
 {
@@ -619,6 +622,37 @@ namespace DeluEngine::GUI
 		virtual int HandleEvent(const Event& event);
 	};
 
+	export class Text : public UIElement
+	{
+	private:
+		TTF_Font* m_font;
+		std::string m_text;
+		AbsoluteSize m_textBounds;
+		SDL2pp::unique_ptr<SDL2pp::Texture> m_texture;
+		bool m_dirty = true;
+
+	public:
+		Text(UIFrame& ownerFrame) :
+			UIElement{ ownerFrame }
+		{
+		}
+
+		Text(UIFrame& ownerFrame, PositionVariant position, SizeVariant size, Vector2 pivot, UIElement* parent = nullptr) :
+			UIElement{ ownerFrame, position, size, pivot, parent }
+		{
+		}
+
+		void SetText(std::string_view text);
+		void SetFont(TTF_Font* font)
+		{
+			m_font = font;
+			m_dirty = true;
+		}
+
+		virtual int HandleEvent(const Event& event);
+	};
+
+	
 	//std::unique_ptr<UIElement> UIFrame::NewElement(PositionVariant position, SizeVariant size, Vector2 pivot, UIElement* parent)
 	//{
 	//	return std::make_unique<UIElement>(*this, position, size, pivot, parent);
