@@ -14,60 +14,15 @@ namespace DeluEngine::GUI
 {
 	int UIElement::HandleEvent(const Event& event)
 	{
-		static bool oneTimeHoverCheck = true;
-		static bool oneTimeHeldCheck = true;
-		return std::visit([&, this](const auto& underlyingEvent) -> int
-		{
-			using underlying_type = std::remove_cvref_t<decltype(underlyingEvent)>;
-			if constexpr(std::same_as<underlying_type, MouseEvent>)
-			{
-				if(!debugEnableRaytrace)
-					return underlyingEvent.unhandledCode;
+		return defaultSuccessCode;
 
-				//underlyingEvent.renderer->backend->CopyEx(texture.get(), std::nullopt, GUI::GetRect(*this), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
-				if(underlyingEvent.type == MouseEventType::Overlap)
-				{
-					std::cout << "Overlapped: " << debugName << "\n";
-				}
-				else if(underlyingEvent.type == MouseEventType::Unoverlap)
-				{
-					std::cout << "Uoverlapped: " << debugName << "\n";
-					oneTimeHoverCheck = true;
-				}
-				else if(underlyingEvent.type == MouseEventType::Hover && oneTimeHoverCheck)
-				{
-					std::cout << "Hover: " << debugName << "\n";
-					oneTimeHeldCheck = true;
-					oneTimeHoverCheck = false;
-				}
+		//Template to handle event
+		//return std::visit([this](const auto& underlyingEvent) -> int
+		//{
+		//	using underlying_type = std::remove_cvref_t<decltype(underlyingEvent)>;
 
-				if(underlyingEvent.action)
-				{
-					if(*underlyingEvent.action == MouseClickType::Pressed)
-					{
-						std::cout << "Pressed: " << debugName << "\n";
-					}
-					else if(*underlyingEvent.action == MouseClickType::Released)
-					{
-						std::cout << "Released: " << debugName << "\n";
-						oneTimeHeldCheck = true;
-					}
-					else if(*underlyingEvent.action == MouseClickType::Clicked)
-					{
-						std::cout << "Clicked: " << debugName << "\n";
-					}
-					else if(*underlyingEvent.action == MouseClickType::Held && oneTimeHeldCheck)
-					{
-						std::cout << "Held: " << debugName << "\n";
-						oneTimeHeldCheck = false;
-					}
-				}
-
-
-				return underlyingEvent.handledCode;
-			}
-			return defaultSuccessCode;
-		}, event);
+		//	return defaultSuccessCode;
+		//}, event);
 	}
 
 	void UIElement::SetParent(UIElement* newParent, UIReparentLogic logic)
@@ -180,6 +135,69 @@ namespace DeluEngine::GUI
 				return defaultSuccessCode;
 			}, event);
 	}
+
+	int Button::HandleEvent(const Event& event)
+	{
+		return std::visit([&, this](const auto& underlyingEvent) -> int
+			{
+				using underlying_type = std::remove_cvref_t<decltype(underlyingEvent)>;
+				if constexpr(std::same_as<underlying_type, DrawEvent>)
+				{
+					underlyingEvent.renderer->backend->CopyEx(texture.get(), std::nullopt, GetSDLRect(*this), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+
+					return defaultSuccessCode;
+				}
+				if constexpr(std::same_as<underlying_type, MouseEvent>)
+				{
+					static bool oneTimeHoverCheck = true;
+					static bool oneTimeHeldCheck = true;
+					if(!debugEnableRaytrace)
+						return underlyingEvent.unhandledCode;
+
+					if(underlyingEvent.type == MouseEventType::Overlap)
+					{
+						std::cout << "Overlapped: " << debugName << "\n";
+					}
+					else if(underlyingEvent.type == MouseEventType::Unoverlap)
+					{
+						std::cout << "Uoverlapped: " << debugName << "\n";
+						oneTimeHoverCheck = true;
+					}
+					else if(underlyingEvent.type == MouseEventType::Hover && oneTimeHoverCheck)
+					{
+						std::cout << "Hover: " << debugName << "\n";
+						oneTimeHeldCheck = true;
+						oneTimeHoverCheck = false;
+					}
+
+					if(underlyingEvent.action)
+					{
+						if(*underlyingEvent.action == MouseClickType::Pressed)
+						{
+							std::cout << "Pressed: " << debugName << "\n";
+						}
+						else if(*underlyingEvent.action == MouseClickType::Released)
+						{
+							std::cout << "Released: " << debugName << "\n";
+							oneTimeHeldCheck = true;
+						}
+						else if(*underlyingEvent.action == MouseClickType::Clicked)
+						{
+							std::cout << "Clicked: " << debugName << "\n";
+						}
+						else if(*underlyingEvent.action == MouseClickType::Held && oneTimeHeldCheck)
+						{
+							std::cout << "Held: " << debugName << "\n";
+							oneTimeHeldCheck = false;
+						}
+					}
+
+					return underlyingEvent.handledCode;
+				}
+				return UIElement::HandleEvent(event);
+			}, event);
+	}
+
 
 	void ProcessEvent(GUIEngine& engine, const SDL2pp::Event& event, Vector2 windowSize)
 	{

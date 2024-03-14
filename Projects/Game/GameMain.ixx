@@ -54,9 +54,9 @@ export auto TestSceneMain()
 		testElement->ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::AbsoluteSize>();
 		testElement->ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::RelativeSize>();
 
-		temp = frame.NewElement<DeluEngine::GUI::Image>(testElement->GetFramePositionAs<DeluEngine::GUI::RelativePosition>(), testElement->GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement->GetPivot(), nullptr, nullptr);
-		DeluEngine::GUI::Image* testElement2 = temp.get();
-		gui.AddPersistentElement(std::move(temp));
+		auto temp2 = frame.NewElement<DeluEngine::GUI::Button>(testElement->GetFramePositionAs<DeluEngine::GUI::RelativePosition>(), testElement->GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement->GetPivot(), nullptr, nullptr);
+		DeluEngine::GUI::Button* testElement2 = temp2.get();
+		gui.AddPersistentElement(std::move(temp2));
 		testElement2->debugName = "Two";
 		testElement2->texture = testElement->texture;
 		testElement2->SetPivot({ 0.5f, 0.5f });

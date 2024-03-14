@@ -366,7 +366,7 @@ namespace DeluEngine::GUI
 
 	public:
 		std::string debugName;
-		bool debugEnableRaytrace = true;
+		bool debugEnableRaytrace = false;
 
 	public:
 		UIElement(UIFrame& ownerFrame) :
@@ -592,6 +592,28 @@ namespace DeluEngine::GUI
 			UIElement{ ownerFrame, position, size, pivot, parent },
 			texture{ texture }
 		{
+		}
+
+		virtual int HandleEvent(const Event& event);
+	};
+
+	export class Button : public UIElement
+	{
+	public:
+		SDL2pp::shared_ptr<SDL2pp::Texture> texture;
+
+	public:
+		Button(UIFrame& ownerFrame) :
+			UIElement{ ownerFrame }
+		{
+			debugEnableRaytrace = true;
+		}
+
+		Button(UIFrame& ownerFrame, PositionVariant position, SizeVariant size, Vector2 pivot, UIElement* parent = nullptr, SDL2pp::shared_ptr<SDL2pp::Texture> texture = nullptr) :
+			UIElement{ ownerFrame, position, size, pivot, parent },
+			texture{ texture }
+		{
+			debugEnableRaytrace = true;
 		}
 
 		virtual int HandleEvent(const Event& event);
