@@ -98,230 +98,123 @@ namespace SDL2pp
 	};
 
 	export template<class Ty>
-	class unique_ptr : private std::unique_ptr<Ty, SDL2Destructor<Ty>>, private SDL2Interface<Ty, unique_ptr<Ty>>
+	class unique_ptr : private SDL2Interface<Ty, unique_ptr<Ty>>
 	{
-		using base_type = std::unique_ptr<Ty, SDL2Destructor<Ty>>;
 		using interface_type = SDL2Interface<Ty, unique_ptr<Ty>>;
-
-		friend unique_ptr;
 		friend interface_type;
+	private:
+		std::unique_ptr<Ty, SDL2Destructor<Ty>> m_ptr;
 
 	public:
-		using base_type::unique_ptr;
-		using base_type::operator=;
-		using base_type::release;
-		using base_type::reset;
-		using base_type::get;
-		using base_type::get_deleter;
-		using base_type::operator bool;
+		unique_ptr() noexcept = default;
+		unique_ptr(std::nullptr_t) noexcept {}
+		unique_ptr(Ty* ptr) noexcept : m_ptr{ ptr } {}
+		unique_ptr(const unique_ptr<Ty>&) noexcept = delete;
+		unique_ptr(unique_ptr<Ty>&& other) noexcept : m_ptr{ std::move(other.m_ptr) } {}
+		~unique_ptr() = default;
 
-		//For a quick and dirty implementation, operator<=> for some reason prioritizes std::shared_ptr's one
-		//so I must implement comparison operators the old fashioned way
-		template<class Ty1, class Ty2>
-		friend bool operator==(const unique_ptr<Ty1>& lh, const unique_ptr<Ty2>& rh) noexcept
-		{
-			return static_cast<const unique_ptr<Ty1>::base_type&>(lh) == static_cast<const unique_ptr<Ty2>::base_type&>(rh);
-		}
+		unique_ptr<Ty>& operator=(std::nullptr_t) noexcept { m_ptr = nullptr; return *this; }
+		unique_ptr<Ty>& operator=(const unique_ptr<Ty>&) noexcept = delete;
+		unique_ptr<Ty>& operator=(unique_ptr<Ty>&& other) noexcept { m_ptr = std::move(other.m_ptr); return *this; }
+
 
 		template<class Ty1, class Ty2>
-		friend bool operator!=(const unique_ptr<Ty1>& lh, const unique_ptr<Ty2>& rh) noexcept
+		friend auto operator<=>(const unique_ptr<Ty1>& lh, const unique_ptr<Ty2>& rh) noexcept
 		{
-			return static_cast<const unique_ptr<Ty1>::base_type&>(lh) != static_cast<const unique_ptr<Ty2>::base_type&>(rh);
+			return lh.m_ptr <=> rh.m_ptr;
 		}
-
-		template<class Ty1, class Ty2>
-		friend bool operator<(const unique_ptr<Ty1>& lh, const unique_ptr<Ty2>& rh) noexcept
-		{
-			return static_cast<const unique_ptr<Ty1>::base_type&>(lh) < static_cast<const unique_ptr<Ty2>::base_type&>(rh);
-		}
-
-		template<class Ty1, class Ty2>
-		friend bool operator<= (const unique_ptr<Ty1>&lh, const unique_ptr<Ty2>&rh) noexcept
-		{
-			return static_cast<const unique_ptr<Ty1>::base_type&>(lh) <= static_cast<const unique_ptr<Ty2>::base_type&>(rh);
-		}
-
-		template<class Ty1, class Ty2>
-		friend bool operator>(const unique_ptr<Ty1>& lh, const unique_ptr<Ty2>& rh) noexcept
-		{
-			return static_cast<const unique_ptr<Ty1>::base_type&>(lh) > static_cast<const unique_ptr<Ty2>::base_type&>(rh);
-		}
-
-		template<class Ty1, class Ty2>
-		friend bool operator<=(const unique_ptr<Ty1>& lh, const unique_ptr<Ty2>& rh) noexcept
-		{
-			return static_cast<const unique_ptr<Ty1>::base_type&>(lh) <= static_cast<const unique_ptr<Ty2>::base_type&>(rh);
-		}
-
 		template<class Ty1>
-		friend bool operator==(const unique_ptr<Ty1>& lh, std::nullptr_t) noexcept
+		friend auto operator<=>(const unique_ptr<Ty1>& lh, std::nullptr_t) noexcept
 		{
-			return static_cast<const base_type&>(lh) == nullptr;
+			return lh.m_ptr <=> nullptr;
 		}
 
-		template<class Ty1>
-		friend bool operator!=(const unique_ptr<Ty1>& lh, std::nullptr_t) noexcept
-		{
-			return static_cast<const base_type&>(lh) != nullptr;
-		}
-
-		template<class Ty1>
-		friend bool operator<(const unique_ptr<Ty1>&lh, std::nullptr_t) noexcept
-		{
-			return static_cast<const base_type&>(lh) < nullptr;
-		}
-
-		template<class Ty1>
-		friend bool operator<=(const unique_ptr<Ty1>&lh, std::nullptr_t) noexcept
-		{
-			return static_cast<const base_type&>(lh) <= nullptr;
-		}
-
-		template<class Ty1>
-		friend bool operator>(const unique_ptr<Ty1>&lh, std::nullptr_t) noexcept
-		{
-			return static_cast<const base_type&>(lh) > nullptr;
-		}
-
-		template<class Ty1>
-		friend bool operator<=(const unique_ptr<Ty1>&lh, std::nullptr_t) noexcept
-		{
-			return static_cast<const base_type&>(lh) >= nullptr;
-		}
-		
-		interface_type& operator*() noexcept { return static_cast<interface_type&>(*this); }
-		const interface_type& operator*() const noexcept { return static_cast<const interface_type&>(*this); }
-		
-		interface_type* operator->() noexcept { return static_cast<interface_type*>(this); }
 		const interface_type* operator->() const noexcept { return static_cast<const interface_type*>(this); }
+		const interface_type& operator*() const noexcept { return static_cast<const interface_type&>(*this); }
+
+		interface_type* operator->() noexcept { return static_cast<interface_type*>(this); }
+		interface_type& operator*() noexcept { return static_cast<interface_type&>(*this); }
+
+		operator bool() const noexcept { return static_cast<bool>(m_ptr); }
+	public:
+		auto release() noexcept
+		{
+			return m_ptr.release();
+		}
+
+		void reset(Ty* ptr) noexcept
+		{
+			m_ptr.reset(ptr);
+		}
+
+		void swap(unique_ptr& other) noexcept
+		{
+			m_ptr.swap(other.m_ptr);
+		}
+
+		auto get() const noexcept { return m_ptr.get(); }
+
+		auto get_deleter() const noexcept { return m_ptr.get_deleter(); }
 	};
 
 	export template<class Ty>
-		class shared_ptr : private std::shared_ptr<Ty>, private SDL2Interface<Ty, shared_ptr<Ty>>
+	class shared_ptr : private SDL2Interface<Ty, shared_ptr<Ty>>
 	{
-		using base_type = std::shared_ptr<Ty>;
 		using interface_type = SDL2Interface<Ty, shared_ptr<Ty>>;
-
-		friend shared_ptr;
 		friend interface_type;
+	private:
+		std::shared_ptr<Ty> m_ptr;
 
 	public:
-		using base_type::shared_ptr;
-		using base_type::operator=;
-		using base_type::reset;
-		using base_type::get;
-		using base_type::operator bool;
+		shared_ptr() noexcept = default;
+		shared_ptr(std::nullptr_t) noexcept {}
+		shared_ptr(Ty* ptr) noexcept : m_ptr{ ptr, SDL2Destructor<Ty>{} } {}
+		shared_ptr(unique_ptr<Ty> other) noexcept : m_ptr{ other.release(), SDL2Destructor<Ty>{} } {}
+		shared_ptr(const shared_ptr<Ty>& other) noexcept : m_ptr{ other.m_ptr } {}
+		shared_ptr(shared_ptr<Ty>&& other) noexcept : m_ptr{ std::move(other.m_ptr) } {}
+		~shared_ptr() = default;
 
-		template<class Ty2>
-		shared_ptr(SDL2pp::unique_ptr<Ty2> ptr) : base_type{ std::unique_ptr<Ty2, SDL2Destructor<Ty2>>{ ptr.release()} }
-		{
+		shared_ptr<Ty>& operator=(std::nullptr_t) noexcept { m_ptr = nullptr; return *this; }
+		shared_ptr<Ty>& operator=(const shared_ptr<Ty>& other) { m_ptr = other.m_ptr; return *this; }
+		shared_ptr<Ty>& operator=(shared_ptr<Ty>&& other) noexcept { m_ptr = std::move(other.m_ptr); return *this; }
 
-		}
-
-		template<class Ty2, class Deleter>
-		shared_ptr(Ty2* ptr, Deleter d) = delete;
-
-		template<class Ty2, class Deleter, class Alloc>
-		shared_ptr(Ty2* ptr, Deleter d, Alloc alloc) = delete;
-
-		template<class Deleter>
-		shared_ptr(std::nullptr_t, Deleter d) = delete;
-
-		template<class Deleter, class Alloc>
-		shared_ptr(std::nullptr_t, Deleter d, Alloc alloc) = delete;
-
-		template<class Ty2, class Deleter>
-		void reset(Ty2* ptr, Deleter d) = delete;
-
-		template<class Ty2, class Deleter, class Alloc>
-		void reset(Ty2* ptr, Deleter d, Alloc alloc) = delete;
-
-		//For a quick and dirty implementation, operator<=> for some reason prioritizes std::shared_ptr's one
-		//so I must implement comparison operators the old fashioned way
-		template<class Ty1, class Ty2>
-		friend bool operator==(const shared_ptr<Ty1>& lh, const shared_ptr<Ty2>& rh) noexcept
-		{
-			return static_cast<const shared_ptr<Ty1>::base_type&>(lh) == static_cast<const shared_ptr<Ty2>::base_type&>(rh);
-		}
 
 		template<class Ty1, class Ty2>
-		friend bool operator!=(const shared_ptr<Ty1>& lh, const shared_ptr<Ty2>& rh) noexcept
+		friend auto operator<=>(const shared_ptr<Ty1>& lh, const shared_ptr<Ty2>& rh) noexcept
 		{
-			return static_cast<const shared_ptr<Ty1>::base_type&>(lh) != static_cast<const shared_ptr<Ty2>::base_type&>(rh);
+			return lh.m_ptr <=> rh.m_ptr;
 		}
-
-		template<class Ty1, class Ty2>
-		friend bool operator<(const shared_ptr<Ty1>& lh, const shared_ptr<Ty2>& rh) noexcept
-		{
-			return static_cast<const shared_ptr<Ty1>::base_type&>(lh) < static_cast<const shared_ptr<Ty2>::base_type&>(rh);
-		}
-
-		template<class Ty1, class Ty2>
-		friend bool operator<= (const shared_ptr<Ty1>& lh, const shared_ptr<Ty2>& rh) noexcept
-		{
-			return static_cast<const shared_ptr<Ty1>::base_type&>(lh) <= static_cast<const shared_ptr<Ty2>::base_type&>(rh);
-		}
-
-		template<class Ty1, class Ty2>
-		friend bool operator>(const shared_ptr<Ty1>& lh, const shared_ptr<Ty2>& rh) noexcept
-		{
-			return static_cast<const shared_ptr<Ty1>::base_type&>(lh) > static_cast<const shared_ptr<Ty2>::base_type&>(rh);
-		}
-
-		template<class Ty1, class Ty2>
-		friend bool operator<=(const shared_ptr<Ty1>& lh, const shared_ptr<Ty2>& rh) noexcept
-		{
-			return static_cast<const shared_ptr<Ty1>::base_type&>(lh) <= static_cast<const shared_ptr<Ty2>::base_type&>(rh);
-		}
-
 		template<class Ty1>
-		friend bool operator==(const shared_ptr<Ty1>& lh, std::nullptr_t) noexcept
+		friend auto operator<=>(const shared_ptr<Ty1>& lh, std::nullptr_t) noexcept
 		{
-			return static_cast<const base_type&>(lh) == nullptr;
+			return lh.m_ptr <=> nullptr;
 		}
 
-		template<class Ty1>
-		friend bool operator!=(const shared_ptr<Ty1>& lh, std::nullptr_t) noexcept
-		{
-			return static_cast<const base_type&>(lh) != nullptr;
-		}
-
-		template<class Ty1>
-		friend bool operator<(const shared_ptr<Ty1>& lh, std::nullptr_t) noexcept
-		{
-			return static_cast<const base_type&>(lh) < nullptr;
-		}
-
-		template<class Ty1>
-		friend bool operator<=(const shared_ptr<Ty1>& lh, std::nullptr_t) noexcept
-		{
-			return static_cast<const base_type&>(lh) <= nullptr;
-		}
-
-		template<class Ty1>
-		friend bool operator>(const shared_ptr<Ty1>& lh, std::nullptr_t) noexcept
-		{
-			return static_cast<const base_type&>(lh) > nullptr;
-		}
-
-		template<class Ty1>
-		friend bool operator<=(const shared_ptr<Ty1>& lh, std::nullptr_t) noexcept
-		{
-			return static_cast<const base_type&>(lh) >= nullptr;
-		}
-
-		interface_type& operator*() noexcept { return static_cast<interface_type&>(*this); }
+		const interface_type* operator->() const noexcept { return static_cast<const interface_type*>(this); }
 		const interface_type& operator*() const noexcept { return static_cast<const interface_type&>(*this); }
 
 		interface_type* operator->() noexcept { return static_cast<interface_type*>(this); }
-		const interface_type* operator->() const noexcept { return static_cast<const interface_type*>(this); }
+		interface_type& operator*() noexcept { return static_cast<interface_type&>(*this); }
+
+		operator bool() const noexcept { return static_cast<bool>(m_ptr); }
+	public:
+		auto release() noexcept
+		{
+			return m_ptr.release();
+		}
+
+		void reset(Ty* ptr) noexcept
+		{
+			m_ptr.reset(ptr);
+		}
+
+		void swap(shared_ptr& other) noexcept
+		{
+			m_ptr.swap(other.m_ptr);
+		}
+
+		auto get() const noexcept { return m_ptr.get(); }
 	};
-
-	//export template<class Ty>
-	//class shared_ptr : private std::shared_ptr<Ty>, private SDL2Interface<Ty, shared_ptr<Ty>>
-	//{
-
-	//};
 
 	//export template<class Ty>
 	//class weak_ptr : private std::weak_ptr<Ty>

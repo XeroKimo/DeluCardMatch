@@ -11,6 +11,7 @@ module;
 export module DeluEngine:ECS;
 export import ECS;
 import :EngineAware;
+import :GUI;
 import SDL2pp;
 
 namespace DeluEngine
@@ -49,13 +50,37 @@ namespace DeluEngine
 
 	export class SceneSystem : public ECS::SceneSystem
 	{
+	public:
 		using ECS::SceneSystem::SceneSystem;
+
+	public:
+		Scene& GetScene() const noexcept;
+	};
+
+	export class SceneGUISystem : public SceneSystem
+	{
+	private:
+		std::vector<std::unique_ptr<GUI::UIFrame>> m_systemOwnedFrames;
+		std::vector<std::unique_ptr<GUI::UIElement>> m_systemOwnedElements;
+
+	public:
+		SceneGUISystem(const gsl::not_null<ECS::Scene*> scene) :
+			SceneSystem{ scene }
+		{
+
+		}
+
+	public:
+		GUI::UIFrame& NewPersistentFrame();
+
+		void AddPersistentElement(std::unique_ptr<GUI::UIElement> element)
+		{
+			m_systemOwnedElements.push_back(std::move(element));
+		}
 	};
 
 	class Scene : public ECS::Scene
 	{
-	private:
-
 	public:
 		template<std::invocable<ECS::Scene&> InitFunc>
 		Scene(gsl::not_null<Engine*> engine, InitFunc&& init) :
@@ -102,5 +127,10 @@ namespace DeluEngine
 	Scene& GameObject::GetScene() const noexcept
 	{
 		return static_cast<Scene&>(ECS::GameObject::GetScene());
+	}
+
+	Scene& SceneSystem::GetScene() const noexcept
+	{
+		return static_cast<Scene&>(ECS::SceneSystem::GetScene());
 	}
 }
