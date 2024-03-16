@@ -892,7 +892,7 @@ namespace ECS
 		{
 
 		}
-
+		virtual ~SceneSystem() = default;
 		virtual void Update(float deltaTime) {}
 
 		Scene& GetScene() const noexcept { return *m_scene; }
@@ -972,7 +972,7 @@ namespace ECS
 			FinishInit();
 		}
 		
-		~Scene()
+		virtual ~Scene()
 		{
 			for (auto gameObject : m_rootObjects)
 			{

@@ -70,6 +70,8 @@ namespace DeluEngine
 
 		}
 
+		~SceneGUISystem();
+
 	public:
 		GUI::UIFrame& NewPersistentFrame();
 

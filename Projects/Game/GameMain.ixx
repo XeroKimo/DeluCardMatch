@@ -6,6 +6,7 @@ module;
 #include <chrono>
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_image.h>
+#include <iostream>
 
 export module DeluGame;
 
@@ -17,6 +18,14 @@ import DeluEngine;
 //import Enemy;
 //import LevelStrip.Event.EnemySpawn;
 //import DeluGame.ControllerContextConstants;
+
+export auto CardMatchScene()
+{
+	return [](ECS::Scene& s)
+	{
+		std::cout << "Entered card match scene\n";
+	};
+}
 
 using namespace xk::Math::Aliases;
 export auto TestSceneMain()
@@ -59,6 +68,10 @@ export auto TestSceneMain()
 		testElement2->SetLocalPosition(DeluEngine::GUI::RelativePosition{ { 0.85f, 0.5f } });
 		testElement2->SetSizeRepresentation(DeluEngine::GUI::AspectRatioRelativeSize{ .ratio = -9.f / 16.f, .value = 0.5f });
 		testElement2->SetParent(testElement, DeluEngine::GUI::UIReparentLogic::KeepAbsoluteTransform);
+		testElement2->onClicked = [&engine]
+			{
+				engine.running = false;
+			};
 		//testElement2->SetLocalPosition(DeluEngine::GUI::ConvertPivotEquivalentRelativePosition(testElement2->GetPivot(), { 0, 0 }, testElement2->GetLocalPositionAs<DeluEngine::GUI::RelativePosition>(), testElement2->GetLocalSizeAs<DeluEngine::GUI::RelativeSize>(), testElement2->GetParentAbsoluteSize()));
 
 		//testElement2->SetPivot({ 0.0f, 0.0f });
@@ -77,9 +90,9 @@ export auto TestSceneMain()
 		//testElement2->position = ConvertPivotEquivalentPosition(testElement2->m_pivot, testElement->m_pivot, testElement2->position, testElement2->GetRelativeSizeToParent(), frame.size);
 		//testElement2->pivot = testElement->pivot;
 
-		temp = frame.NewElement<DeluEngine::GUI::Image>(testElement->GetFramePositionAs<DeluEngine::GUI::RelativePosition>(), testElement->GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement->GetPivot(), testElement2, nullptr);
-		DeluEngine::GUI::Image* testElement3 = temp.get();
-		gui.AddPersistentElement(std::move(temp));
+		temp2 = frame.NewElement<DeluEngine::GUI::Button>(testElement->GetFramePositionAs<DeluEngine::GUI::RelativePosition>(), testElement->GetFrameSizeAs<DeluEngine::GUI::RelativeSize>(), testElement->GetPivot(), testElement2);
+		DeluEngine::GUI::Button* testElement3 = temp2.get();
+		gui.AddPersistentElement(std::move(temp2));
 
 		testElement3->debugName = "Three";
 		testElement3->texture = testElement->texture;
@@ -90,6 +103,10 @@ export auto TestSceneMain()
 		//testElement3->SetFramePosition(DeluEngine::GUI::RelativePosition{ { 0.5f, 0.5f } });
 		testElement3->SetLocalSize(DeluEngine::GUI::RelativeSize{ {0.5f, 0.5f} });
 		testElement3->SetLocalPosition(DeluEngine::GUI::RelativePosition{ { 0.5f, 0.5f } });
+		testElement3->onClicked = [&engine]
+			{
+				engine.queuedScene = CardMatchScene();
+			};
 
 
 

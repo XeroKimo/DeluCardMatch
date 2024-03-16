@@ -103,7 +103,7 @@ int main()
 
 	std::chrono::duration<float> physicsAccumulator{ 0.f };
 
-	while(true)
+	while(engine.running)
 	{
 		SDL2pp::Event event;
 		if(SDL2pp::PollEvent(event))
@@ -117,31 +117,39 @@ int main()
 		}
 		else
 		{
-			engine.controllerContext.Execute(engine.controller);
+			if(engine.queuedScene)
+			{
+				engine.CreateScene(engine.queuedScene);
+				engine.guiEngine.ResetHoveredElements();
+				engine.queuedScene = nullptr;
+			}
+			else
+			{
+				engine.controllerContext.Execute(engine.controller);
 
-			timer.Tick([&](std::chrono::nanoseconds dt)
-				{
-					engine.guiEngine.UpdateHoveredElement();
-					engine.guiEngine.DispatchHoveredEvent();
-
-					std::chrono::duration<float> deltaTime = std::chrono::duration_cast<std::chrono::duration<float>>(dt);
-					static constexpr std::chrono::duration<float> physicsStep{ 1.f / 60.f };
-					physicsAccumulator += deltaTime;
-
-					while(physicsAccumulator >= physicsStep)
+				timer.Tick([&](std::chrono::nanoseconds dt)
 					{
-						engine.physicsWorld.Step(physicsStep.count(), 8, 3);
-						physicsAccumulator -= physicsStep;
+						engine.guiEngine.UpdateHoveredElement();
+						engine.guiEngine.DispatchHoveredEvent();
 
-						//std::cout << "Body pos " << b->GetPosition().x << ", " << b->GetPosition().y << "\n";
-					}
-					engine.scene->Update(deltaTime.count());
-				});
+						std::chrono::duration<float> deltaTime = std::chrono::duration_cast<std::chrono::duration<float>>(dt);
+						static constexpr std::chrono::duration<float> physicsStep{ 1.f / 60.f };
+						physicsAccumulator += deltaTime;
 
-			engine.controller.SwapBuffers();
+						while(physicsAccumulator >= physicsStep)
+						{
+							engine.physicsWorld.Step(physicsStep.count(), 8, 3);
+							physicsAccumulator -= physicsStep;
 
-			Render(engine);
+							//std::cout << "Body pos " << b->GetPosition().x << ", " << b->GetPosition().y << "\n";
+						}
+						engine.scene->Update(deltaTime.count());
+					});
 
+				engine.controller.SwapBuffers();
+
+				Render(engine);
+			}
 			//	////Formerly drawn within a frame
 			//	//SDL_Rect textLocation = { 400, 200, testFontSurface->w, testFontSurface->h };
 			//	//engine.renderer.backend->Copy(testFontTexture, std::nullopt, textLocation);

@@ -604,6 +604,7 @@ namespace DeluEngine::GUI
 	{
 	public:
 		SDL2pp::shared_ptr<SDL2pp::Texture> texture;
+		std::function<void()> onClicked;
 
 	public:
 		Button(UIFrame& ownerFrame) :
@@ -702,8 +703,10 @@ namespace DeluEngine::GUI
 
 		void UpdateHoveredElement()
 		{
-			previousHoveredElement = hoveredElement;
-			hoveredElement = GetHoveredElement(*frames.back(), mousePosition);
+			previousHoveredElement = std::exchange(hoveredElement, nullptr);
+			for(auto it = frames.rbegin(); it != frames.rend() && !hoveredElement; it++)
+				hoveredElement = GetHoveredElement(*(*it), mousePosition);
+
 			if(hoveredElement != previousHoveredElement)
 			{
 				if(previousHoveredElement)
@@ -715,6 +718,11 @@ namespace DeluEngine::GUI
 					hoveredElement->HandleEvent(DeluEngine::GUI::MouseEvent{ DeluEngine::GUI::MouseEventType::Overlap, std::nullopt });
 				}
 			}
+		}
+
+		void ResetHoveredElements()
+		{
+			previousHoveredElement = hoveredElement = nullptr;
 		}
 
 		void DispatchHoveredEvent()

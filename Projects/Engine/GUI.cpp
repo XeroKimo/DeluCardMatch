@@ -184,6 +184,8 @@ namespace DeluEngine::GUI
 						}
 						else if(*underlyingEvent.action == MouseClickType::Clicked)
 						{
+							if(onClicked)
+								onClicked();
 							std::cout << "Clicked: " << debugName << "\n";
 						}
 						else if(*underlyingEvent.action == MouseClickType::Held && oneTimeHeldCheck)

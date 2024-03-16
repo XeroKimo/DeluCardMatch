@@ -6,6 +6,7 @@ module;
 #include <array>
 #include <iostream>
 #include <numbers>
+#include <functional>
 
 export module DeluEngine:Engine;
 import :Renderer;
@@ -87,6 +88,8 @@ namespace DeluEngine
 		b2World physicsWorld{ {0, -9.8f } };
 		std::unique_ptr<Scene> scene;
 		Box2DCallbacks box2DCallbacks;
+		bool running = true;
+		std::function<void(ECS::Scene&)> queuedScene;
 
 		template<std::invocable<ECS::Scene&> InitFunc>
 		void CreateScene(InitFunc&& init)
