@@ -21,11 +21,31 @@ import SDL2pp;
 //import LevelStrip.Event.EnemySpawn;
 //import DeluGame.ControllerContextConstants;
 using namespace xk::Math::Aliases;
+
+
 export struct Card
 {
 	std::unique_ptr<DeluEngine::GUI::Button> backCardButton;
 	std::unique_ptr<DeluEngine::GUI::Image> frontCard;
 	std::unique_ptr<DeluEngine::GUI::Image> cardTypeIcon;
+
+	void FlipUp()
+	{
+		backCardButton->render = false;
+		backCardButton->debugEnableRaytrace = false;
+
+		frontCard->render = true;
+		cardTypeIcon->render = true;
+	}
+
+	void FlipDown()
+	{
+		backCardButton->render = true;
+		backCardButton->debugEnableRaytrace = true;
+
+		frontCard->render = false;
+		cardTypeIcon->render = false;
+	}
 };
 
 export struct CardGrid : public DeluEngine::SceneSystem
@@ -98,17 +118,14 @@ export auto CardMatchScene()
 		{
 			grid.testCard.backCardButton = std::move(frame.NewElement<DeluEngine::GUI::Button>(RelativePosition{ { 0.4f, 0.5f } }, AspectRatioRelativeSize{ .ratio = -1, .value = 0.15f }, Vector2{ 0.5f, 0.5f }, nullptr, grid.cardBackTexture));
 			grid.testCard.backCardButton->onClicked =
-				[&back = grid.testCard.backCardButton, &front = grid.testCard.frontCard]
+				[&card = grid.testCard]
 				{
-					auto backPos = back->GetFramePositionAs<RelativePosition>();
-					auto frontPos = front->GetFramePositionAs<RelativePosition>();
-					front->SetFramePosition(backPos);
-					back->SetFramePosition(frontPos);
+					card.FlipUp();
 				};
 		}
 
 		{
-			grid.testCard.frontCard = std::move(frame.NewElement<DeluEngine::GUI::Image>(RelativePosition{ { 0.6f, 0.5f } }, AspectRatioRelativeSize{ .ratio = -1, .value = 0.15f }, Vector2{ 0.5f, 0.5f }, nullptr, grid.cardFrontTexture));
+			grid.testCard.frontCard = std::move(frame.NewElement<DeluEngine::GUI::Image>(RelativePosition{ { 0.4f, 0.5f } }, AspectRatioRelativeSize{ .ratio = -1, .value = 0.15f }, Vector2{ 0.5f, 0.5f }, nullptr, grid.cardFrontTexture));
 		}
 
 		{
@@ -116,6 +133,8 @@ export auto CardMatchScene()
 
 			grid.testCard.cardTypeIcon->debugName = "Card Face";
 		}
+
+		grid.testCard.FlipDown();
 	};
 }
 

@@ -125,7 +125,8 @@ namespace DeluEngine::GUI
 				using underlying_type = std::remove_cvref_t<decltype(underlyingEvent)>;
 				if constexpr(std::same_as<underlying_type, DrawEvent>)
 				{
-					underlyingEvent.renderer->backend->CopyEx(texture.get(), std::nullopt, GetSDLRect(*this), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+					if(render)
+						underlyingEvent.renderer->backend->CopyEx(texture.get(), std::nullopt, GetSDLRect(*this), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
 
 					return defaultSuccessCode;
 				}
@@ -144,7 +145,8 @@ namespace DeluEngine::GUI
 				using underlying_type = std::remove_cvref_t<decltype(underlyingEvent)>;
 				if constexpr(std::same_as<underlying_type, DrawEvent>)
 				{
-					underlyingEvent.renderer->backend->CopyEx(texture.get(), std::nullopt, GetSDLRect(*this), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+					if(render)
+						underlyingEvent.renderer->backend->CopyEx(texture.get(), std::nullopt, GetSDLRect(*this), 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
 
 					return defaultSuccessCode;
 				}
@@ -222,10 +224,14 @@ namespace DeluEngine::GUI
 						SDL_FreeSurface(tempSurface);
 						m_dirty = false;
 					}
-					auto rect = GetSDLRect(*this);
-					rect.w = m_textBounds.value.X();
-					rect.h = m_textBounds.value.Y();
-					underlyingEvent.renderer->backend->CopyEx(m_texture.get(), std::nullopt, rect, 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+
+					if(render)
+					{
+						auto rect = GetSDLRect(*this);
+						rect.w = m_textBounds.value.X();
+						rect.h = m_textBounds.value.Y();
+						underlyingEvent.renderer->backend->CopyEx(m_texture.get(), std::nullopt, rect, 0, SDL2pp::FPoint{ 0, 0 }, SDL2pp::RendererFlip::SDL_FLIP_NONE);
+					}
 
 					return defaultSuccessCode;
 				}

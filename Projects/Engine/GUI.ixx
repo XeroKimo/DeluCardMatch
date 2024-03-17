@@ -492,57 +492,51 @@ namespace DeluEngine::GUI
 			m_size = GetLocalSizeAs<Ty>();
 		}
 
-		template<VariantMember<PositionVariant> Ty>
-		void SetLocalPosition(Ty val) noexcept
+		void SetLocalPosition(PositionVariant newPos) noexcept
 		{
-			std::visit([this, &val](auto& innerVal)
+			std::visit([this](auto& innerVal, auto& newVal)
 				{
 					using Inner_Ty = std::remove_cvref_t<decltype(innerVal)>;
-					innerVal = ConvertPositionRepresentation<Inner_Ty>(val, GetParentAbsoluteSize());
-				}, m_position);
+					innerVal = ConvertPositionRepresentation<Inner_Ty>(newVal, GetParentAbsoluteSize());
+				}, m_position, newPos);
 		}
 
-		template<VariantMember<SizeVariant> Ty>
-		void SetLocalSize(Ty val) noexcept
+		void SetLocalSize(SizeVariant newSize) noexcept
 		{
-			std::visit([this, &val](auto& innerVal)
+			std::visit([this](auto& innerVal, auto& newVal)
 				{
 					using Inner_Ty = std::remove_cvref_t<decltype(innerVal)>;
-					innerVal = ConvertSizeRepresentation<Inner_Ty>(val, GetParentAbsoluteSize());
-				}, m_size);
+					innerVal = ConvertSizeRepresentation<Inner_Ty>(newVal, GetParentAbsoluteSize());
+				}, m_size, newSize);
 		}
 
-		template<VariantMember<PositionVariant> Ty>
-		void SetFramePosition(Ty val) noexcept
+		void SetFramePosition(PositionVariant newPos) noexcept
 		{
-			std::visit([this, &val](auto& innerVal)
+			std::visit([this](auto& innerVal, auto& newVal)
 				{
 					using Inner_Ty = std::remove_cvref_t<decltype(innerVal)>;
 					AbsolutePosition parentPosition = (m_parent) ? m_parent->GetPivotedFramePositionAs<AbsolutePosition>() : AbsolutePosition{};
-					AbsolutePosition requestedPosition = ConvertPositionRepresentation<AbsolutePosition>(val, AbsoluteSize{ m_ownerFrame->GetSize() });
+					AbsolutePosition requestedPosition = ConvertPositionRepresentation<AbsolutePosition>(newVal, AbsoluteSize{ m_ownerFrame->GetSize() });
 					innerVal = ConvertPositionRepresentation<Inner_Ty>(AbsolutePosition{ requestedPosition.value - parentPosition.value }, GetParentAbsoluteSize());
-				}, m_position);
+				}, m_position, newPos);
 		}
 
-		template<VariantMember<SizeVariant> Ty>
-		void SetFrameSize(Ty val) noexcept
+		void SetFrameSize(SizeVariant newSize) noexcept
 		{
-			std::visit([this, &val](auto& innerVal)
+			std::visit([this](auto& innerVal, auto& newVal)
 				{
 					using Inner_Ty = std::remove_cvref_t<decltype(innerVal)>;
-					AbsoluteSize requestedAbsoluteSize = ConvertSizeRepresentation<AbsoluteSize>(val, AbsoluteSize{ m_ownerFrame->GetSize() });
+					AbsoluteSize requestedAbsoluteSize = ConvertSizeRepresentation<AbsoluteSize>(newVal, AbsoluteSize{ m_ownerFrame->GetSize() });
 					innerVal = ConvertSizeRepresentation<Inner_Ty>(requestedAbsoluteSize, GetParentAbsoluteSize());
-				}, m_size);
+				}, m_size, newSize);
 		}
 
-		template<VariantMember<PositionVariant> Ty>
-		void SetPositionRepresentation(Ty val) noexcept
+		void SetPositionRepresentation(PositionVariant val) noexcept
 		{
 			m_position = val;
 		}
 
-		template<VariantMember<SizeVariant> Ty>
-		void SetSizeRepresentation(Ty val) noexcept
+		void SetSizeRepresentation(SizeVariant val) noexcept
 		{
 			m_size = val;
 		}
@@ -586,6 +580,7 @@ namespace DeluEngine::GUI
 	{
 	public:
 		SDL2pp::shared_ptr<SDL2pp::Texture> texture;
+		bool render = true;
 
 	public:
 		Image(UIFrame& ownerFrame) :
@@ -608,6 +603,7 @@ namespace DeluEngine::GUI
 	public:
 		SDL2pp::shared_ptr<SDL2pp::Texture> texture;
 		std::function<void()> onClicked;
+		bool render = true;
 
 	public:
 		Button(UIFrame& ownerFrame) :
@@ -634,6 +630,9 @@ namespace DeluEngine::GUI
 		AbsoluteSize m_textBounds;
 		SDL2pp::unique_ptr<SDL2pp::Texture> m_texture;
 		bool m_dirty = true;
+
+	public:
+		bool render = true;
 
 	public:
 		Text(UIFrame& ownerFrame) :
