@@ -128,7 +128,10 @@ namespace DeluEngine::GUI
 		const auto [baseSize, variableSize] = [parentSize]()
 			{
 				const auto [min, max] = std::minmax(parentSize.value.X(), parentSize.value.Y());
-				return std::pair(Vector2{ min, min }, Vector2{ max, max } - Vector2{ min, min });
+				if(parentSize.value.X() >= parentSize.value.Y())
+					return std::pair(Vector2{ max - min, 0 }, Vector2{ min, min });
+				else
+					return std::pair(Vector2{ 0, max - min }, Vector2{ min, min });
 			}();
 
 			return BorderConstantRelativeSize{ xk::Math::HadamardDivision(size.value - baseSize, variableSize) };

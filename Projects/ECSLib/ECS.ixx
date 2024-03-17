@@ -978,6 +978,11 @@ namespace ECS
 			{
 				DestroyObject(std::move(gameObject));
 			}
+
+			while(!m_systems.empty())
+			{
+				m_systems.pop_back();
+			}
 		}
 
 		template<std::derived_from<Object> Ty, class... ConstructorParams>
@@ -1083,12 +1088,24 @@ namespace ECS
 			return static_cast<Ty&>(*m_systems.back());
 		}
 
+		template<std::derived_from<SceneSystem> Ty, class... ConstructorParams>
+		Ty& GetSystem(ConstructorParams&&... params) const
+		{
+			auto it = std::find_if(m_systems.begin(), m_systems.end(), [](const auto& value) { return typeid(*value) == typeid(Ty); });
+			if(it == m_systems.end())
+				throw std::exception("No matching system found");
+			return static_cast<Ty&>(*(*it));
+		}
+
 		size_t GetObjectCount() const noexcept { return m_allocator.GetObjects().size(); }
 
 		ObjectAllocator& GetAllocator() noexcept { return m_allocator; }
 		const ObjectAllocator& GetAllocator() const noexcept { return m_allocator; }
 
 		const std::any& GetExternalSystem() const { return m_externalSystem; }
+
+		template<class Ty>
+		Ty GetExternalSystemAs() const { return std::any_cast<Ty>(GetExternalSystem()); }
 
 	private:
 		void BeginObjectLifetimes()

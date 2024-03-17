@@ -117,7 +117,7 @@ namespace DeluEngine
 
 		Engine& GetEngine() const
 		{
-			return *std::any_cast<gsl::not_null<Engine*>>(GetExternalSystem());
+			return *GetExternalSystemAs<gsl::not_null<Engine*>>();
 		}
 	};
 
