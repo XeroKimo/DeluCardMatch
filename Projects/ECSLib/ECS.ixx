@@ -1088,8 +1088,8 @@ namespace ECS
 			return static_cast<Ty&>(*m_systems.back());
 		}
 
-		template<std::derived_from<SceneSystem> Ty, class... ConstructorParams>
-		Ty& GetSystem(ConstructorParams&&... params) const
+		template<std::derived_from<SceneSystem> Ty>
+		Ty& GetSystem() const
 		{
 			auto it = std::find_if(m_systems.begin(), m_systems.end(), [](const auto& value) { return typeid(*value) == typeid(Ty); });
 			if(it == m_systems.end())

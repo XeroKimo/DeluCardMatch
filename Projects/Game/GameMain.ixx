@@ -8,6 +8,7 @@ module;
 #include <SDL2/SDL_image.h>
 #include <iostream>
 #include <array>
+#include <span>
 
 export module DeluGame;
 import xk.Math.Matrix;
@@ -22,12 +23,21 @@ import SDL2pp;
 //import DeluGame.ControllerContextConstants;
 using namespace xk::Math::Aliases;
 
+using namespace DeluEngine::GUI;
 
 export struct Card
 {
 	std::unique_ptr<DeluEngine::GUI::Button> backCardButton;
 	std::unique_ptr<DeluEngine::GUI::Image> frontCard;
 	std::unique_ptr<DeluEngine::GUI::Image> cardTypeIcon;
+
+	Card(DeluEngine::GUI::UIFrame& frame, DeluEngine::GUI::SizeVariant size, SDL2pp::shared_ptr<SDL2pp::Texture> backTexture, SDL2pp::shared_ptr<SDL2pp::Texture> frontTexture, SDL2pp::shared_ptr<SDL2pp::Texture> cardTypeTexture)
+	{
+		backCardButton = frame.NewElement<DeluEngine::GUI::Button>(RelativePosition{}, size, Vector2{ 0.5f, 0.5f }, nullptr, backTexture);
+		frontCard = frame.NewElement<DeluEngine::GUI::Image>(RelativePosition{}, size, Vector2{ 0.5f, 0.5f }, nullptr, frontTexture);
+		cardTypeIcon = frame.NewElement<DeluEngine::GUI::Image>(RelativePosition{ { 0.5f, 0.5f} }, BorderConstantRelativeSize{ .value = { 0.8f, 0.8f } }, Vector2{ 0.5f, 0.5f }, frontCard.get(), cardTypeTexture);
+		FlipDown();
+	}
 
 	void FlipUp()
 	{
@@ -46,19 +56,50 @@ export struct Card
 		frontCard->render = false;
 		cardTypeIcon->render = false;
 	}
+
+	void SetLocalPosition(PositionVariant position)
+	{
+		backCardButton->SetLocalPosition(position);
+		frontCard->SetLocalPosition(position);
+	}
+
+	std::function<void()>& OnClicked() { return backCardButton->onClicked; }
 };
 
 export struct CardGrid : public DeluEngine::SceneSystem
 {
-	Card testCard;
+	std::vector<std::unique_ptr<Card>> cards;
 
-	std::array<SDL2pp::shared_ptr<SDL2pp::Texture>, 12> cardTextures;
-	SDL2pp::shared_ptr<SDL2pp::Texture> cardBackTexture;
-	SDL2pp::shared_ptr<SDL2pp::Texture> cardFrontTexture;
 public:
-	CardGrid(const gsl::not_null<ECS::Scene*> scene) :
+	CardGrid(const gsl::not_null<ECS::Scene*> scene, DeluEngine::GUI::UIFrame& frame, iVector2 gridSize, std::span<SDL2pp::shared_ptr<SDL2pp::Texture>> textures, SDL2pp::shared_ptr<SDL2pp::Texture> cardBack, SDL2pp::shared_ptr<SDL2pp::Texture> cardFront) :
 		SceneSystem{ scene }
 	{
+		cards.push_back(std::make_unique<Card>(frame, AspectRatioRelativeSize{ .ratio = -1, .value = 0.15f }, cardBack, cardFront, textures[4]));
+		cards.back()->SetLocalPosition(RelativePosition{ {0.5, 0.5} });
+		cards.back()->OnClicked() = [thisCard = cards.back().get()]
+		{
+			thisCard->FlipUp();
+		};
+
+	}
+};
+
+export auto CardMatchScene()
+{
+	return [](ECS::Scene& s)
+	{
+		std::cout << "Entered card match scene\n";
+		DeluEngine::Scene& scene = static_cast<DeluEngine::Scene&>(s);
+		DeluEngine::Engine& engine = *s.GetExternalSystemAs<gsl::not_null<DeluEngine::Engine*>>();
+		DeluEngine::SceneGUISystem& gui = scene.CreateSystem<DeluEngine::SceneGUISystem>();
+
+		DeluEngine::GUI::UIFrame& frame = gui.NewPersistentFrame();
+		frame.internalTexture = engine.renderer.backend->CreateTexture(
+			SDL_PIXELFORMAT_RGBA32,
+			SDL2pp::TextureAccess(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET),
+			1600, 900);
+		frame.internalTexture->SetBlendMode(SDL_BLENDMODE_BLEND);
+
 		std::array pngSurfaces
 		{
 			IMG_Load("Cards/delu bonk.png"),
@@ -75,7 +116,9 @@ public:
 			IMG_Load("Cards/syobontaya.png"),
 		};
 
-		DeluEngine::Engine& engine = *GetScene().GetExternalSystemAs<gsl::not_null<DeluEngine::Engine*>>();
+		std::array<SDL2pp::shared_ptr<SDL2pp::Texture>, pngSurfaces.size()> cardTextures;
+		SDL2pp::shared_ptr<SDL2pp::Texture> cardFrontTexture;
+		SDL2pp::shared_ptr<SDL2pp::Texture> cardBackTexture;
 		for(size_t i = 0; i < pngSurfaces.size(); i++)
 		{
 			cardTextures[i] = engine.renderer.backend->CreateTexture(pngSurfaces[i]);
@@ -95,46 +138,8 @@ public:
 		{
 			SDL_FreeSurface(surface);
 		}
-	}
-};
 
-export auto CardMatchScene()
-{
-	return [](ECS::Scene& s)
-	{
-		std::cout << "Entered card match scene\n";
-		DeluEngine::Scene& scene = static_cast<DeluEngine::Scene&>(s);
-		DeluEngine::Engine& engine = *s.GetExternalSystemAs<gsl::not_null<DeluEngine::Engine*>>();
-		DeluEngine::SceneGUISystem& gui = scene.CreateSystem<DeluEngine::SceneGUISystem>();
-		CardGrid& grid = scene.CreateSystem<CardGrid>();
-
-		DeluEngine::GUI::UIFrame& frame = gui.NewPersistentFrame();
-		frame.internalTexture = engine.renderer.backend->CreateTexture(
-			SDL_PIXELFORMAT_RGBA32,
-			SDL2pp::TextureAccess(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET),
-			1600, 900);
-		frame.internalTexture->SetBlendMode(SDL_BLENDMODE_BLEND);
-		using namespace DeluEngine::GUI;
-		{
-			grid.testCard.backCardButton = std::move(frame.NewElement<DeluEngine::GUI::Button>(RelativePosition{ { 0.4f, 0.5f } }, AspectRatioRelativeSize{ .ratio = -1, .value = 0.15f }, Vector2{ 0.5f, 0.5f }, nullptr, grid.cardBackTexture));
-			grid.testCard.backCardButton->onClicked =
-				[&card = grid.testCard]
-				{
-					card.FlipUp();
-				};
-		}
-
-		{
-			grid.testCard.frontCard = std::move(frame.NewElement<DeluEngine::GUI::Image>(RelativePosition{ { 0.4f, 0.5f } }, AspectRatioRelativeSize{ .ratio = -1, .value = 0.15f }, Vector2{ 0.5f, 0.5f }, nullptr, grid.cardFrontTexture));
-		}
-
-		{
-			grid.testCard.cardTypeIcon = std::move(frame.NewElement<DeluEngine::GUI::Image>(RelativePosition{ { 0.5f, 0.5f} }, BorderConstantRelativeSize{ .value = { 0.8f, 0.8f } }, Vector2{ 0.5f, 0.5f }, grid.testCard.frontCard.get(), grid.cardTextures[4]));
-
-			grid.testCard.cardTypeIcon->debugName = "Card Face";
-		}
-
-		grid.testCard.FlipDown();
+		CardGrid& grid = scene.CreateSystem<CardGrid>(frame, iVector2{ 4, 4 }, cardTextures, cardBackTexture, cardFrontTexture);
 	};
 }
 
