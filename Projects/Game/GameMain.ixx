@@ -9,6 +9,8 @@ module;
 #include <iostream>
 #include <array>
 #include <span>
+#include <cstdlib>
+#include <ctime>
 
 export module DeluGame;
 import xk.Math.Matrix;
@@ -119,6 +121,11 @@ public:
 				cards.back()->SetParent(gridAligningParent.get());
 				cards.back()->OnClicked() = makeCardsOnClicked(cards.back().get());
 			}
+		}
+
+		for(auto& card : cards)
+		{
+			std::swap(card, cards[rand() % cards.size()]);
 		}
 
 		for(size_t y = 0; y < gridSize.Y(); y++)
@@ -278,5 +285,6 @@ export auto TitleScene()
 
 export std::function<void(ECS::Scene&)> GameMain(DeluEngine::Engine& engine)
 {
+	std::srand(std::time(nullptr));
 	return TitleScene();
 }
