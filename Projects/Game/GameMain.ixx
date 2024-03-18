@@ -69,6 +69,8 @@ export struct Card
 		frontCard->SetLocalPosition(position);
 	}
 
+	auto GetType() const { return cardTypeIcon->texture; }
+
 	std::function<void()>& OnClicked() { return backCardButton->onClicked; }
 };
 
@@ -76,7 +78,7 @@ export struct CardGrid : public DeluEngine::SceneSystem
 {
 	std::vector<std::unique_ptr<Card>> cards;
 	std::unique_ptr<DeluEngine::GUI::UIElement> gridAligningParent;
-
+	std::array<Card*, 2> selectedCards{};
 public:
 	CardGrid(const gsl::not_null<ECS::Scene*> scene, DeluEngine::GUI::UIFrame& frame, iVector2 gridSize, std::span<SDL2pp::shared_ptr<SDL2pp::Texture>> textures, SDL2pp::shared_ptr<SDL2pp::Texture> cardBack, SDL2pp::shared_ptr<SDL2pp::Texture> cardFront) :
 		SceneSystem{ scene }
@@ -89,15 +91,67 @@ public:
 			{
 				cards.push_back(std::make_unique<Card>(frame, RelativeSize{ { 1.f / gridSize.X(), 1.f / gridSize.Y() } }, cardBack, cardFront, textures[cardTextureCounter % textures.size()]));
 				cards.back()->SetParent(gridAligningParent.get());
-				cards.back()->OnClicked() = [thisCard = cards.back().get()]
+				cards.back()->OnClicked() = [this, thisCard = cards.back().get()]
 					{
-						thisCard->FlipUp();
+						if(selectedCards[0] == nullptr)
+						{
+							selectedCards[0] = thisCard;
+							thisCard->FlipUp();
+						}
+						else if(selectedCards[1] == nullptr)
+						{
+							selectedCards[1] = thisCard;
+							thisCard->FlipUp();
+						}
+						else
+						{
+							if(selectedCards[0]->GetType() == selectedCards[1]->GetType())
+							{
+								std::erase_if(cards, [selectedCard = selectedCards[0]](auto& card) { return card.get() == selectedCard; });
+								std::erase_if(cards, [selectedCard = selectedCards[1]](auto& card) { return card.get() == selectedCard; });
+							}
+							else
+							{
+								selectedCards[0]->FlipDown();
+								selectedCards[1]->FlipDown();
+							}
+							selectedCards[0] = selectedCards[1] = nullptr;
+						}
+							
 					};
 				cards.push_back(std::make_unique<Card>(frame, RelativeSize{ { 1.f / gridSize.X(), 1.f / gridSize.Y() } }, cardBack, cardFront, textures[cardTextureCounter % textures.size()]));
 				cards.back()->SetParent(gridAligningParent.get());
-				cards.back()->OnClicked() = [thisCard = cards.back().get()]
+				cards.back()->OnClicked() = [this, thisCard = cards.back().get()]
 					{
-						thisCard->FlipUp();
+						if(selectedCards[0] == nullptr)
+						{
+							selectedCards[0] = thisCard;
+							thisCard->FlipUp();
+						}
+						else if(selectedCards[1] == nullptr)
+						{
+							selectedCards[1] = thisCard;
+							thisCard->FlipUp();
+							if(cards.size() == 2)
+							{
+								std::erase_if(cards, [selectedCard = selectedCards[0]](auto& card) { return card.get() == selectedCard; });
+								std::erase_if(cards, [selectedCard = selectedCards[1]](auto& card) { return card.get() == selectedCard; });
+							}
+						}
+						else
+						{
+							if(selectedCards[0]->GetType().get() == selectedCards[1]->GetType().get())
+							{
+								std::erase_if(cards, [selectedCard = selectedCards[0]](auto& card) { return card.get() == selectedCard; });
+								std::erase_if(cards, [selectedCard = selectedCards[1]](auto& card) { return card.get() == selectedCard; });
+							}
+							else
+							{
+								selectedCards[0]->FlipDown();
+								selectedCards[1]->FlipDown();
+							}
+							selectedCards[0] = selectedCards[1] = nullptr;
+						}
 					};
 			}
 		}

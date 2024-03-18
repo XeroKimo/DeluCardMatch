@@ -190,6 +190,12 @@ namespace SDL2pp
 			return lh.m_ptr <=> nullptr;
 		}
 
+		template<class Ty1, class Ty2>
+		friend bool operator==(const shared_ptr<Ty1>& lh, const shared_ptr<Ty2>& rh) noexcept
+		{
+			return lh.m_ptr == rh.m_ptr;
+		}
+
 		const interface_type* operator->() const noexcept { return static_cast<const interface_type*>(this); }
 		const interface_type& operator*() const noexcept { return static_cast<const interface_type&>(*this); }
 
