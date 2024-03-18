@@ -76,17 +76,60 @@ export struct Card
 	std::function<void()>& OnClicked() { return backCardButton->onClicked; }
 };
 
+export struct CardMatchSceneLoader
+{
+
+	void operator()(ECS::Scene& s) const;
+};
+
+export CardMatchSceneLoader CardMatchScene();
+
+export struct VictoryScreen
+{
+	std::unique_ptr<DeluEngine::GUI::Button> retryButton;
+	std::unique_ptr<DeluEngine::GUI::Button> quitButton;
+
+	VictoryScreen(DeluEngine::Engine& engine, DeluEngine::GUI::UIFrame& frame)
+	{
+		SDL_Surface* quitButtonPNG = IMG_Load("Quit_Button.png");
+		SDL_Surface* retryButtonPNG = IMG_Load("PlayAgain_Button.png");
+
+		quitButton = frame.NewElement<DeluEngine::GUI::Button>(RelativePosition{ { 0.40f, 0.33f } }, DeluEngine::GUI::AbsoluteSize{ { quitButtonPNG->w, quitButtonPNG->h } }, Vector2{ 0.5f, 0.0f }, nullptr, engine.renderer.backend->CreateTexture(quitButtonPNG));
+		quitButton->ConvertUnderlyingSizeRepresentation<AspectRatioRelativeSize>();
+		retryButton = frame.NewElement<DeluEngine::GUI::Button>(RelativePosition{ { 0.60f, 0.33f } }, DeluEngine::GUI::AbsoluteSize{ { retryButtonPNG->w, retryButtonPNG->h } }, Vector2{ 0.5f, 0.0f }, nullptr, engine.renderer.backend->CreateTexture(retryButtonPNG));
+		retryButton->ConvertUnderlyingSizeRepresentation<AspectRatioRelativeSize>();
+
+		retryButton->onClicked = [&engine]
+			{
+				engine.queuedScene = CardMatchScene();
+			};
+
+		quitButton->onClicked = [&engine]
+			{
+				engine.running = false;
+			};
+
+		SDL_FreeSurface(quitButtonPNG);
+		SDL_FreeSurface(retryButtonPNG);
+	}
+};
+
 export struct CardGrid : public DeluEngine::SceneSystem
 {
 	std::vector<std::unique_ptr<Card>> cards;
 	std::unique_ptr<DeluEngine::GUI::UIElement> gridAligningParent;
+
+	std::unique_ptr<VictoryScreen> victoryScreen;
+
 	std::array<Card*, 2> selectedCards{};
+	DeluEngine::GUI::UIFrame* owningFrame;
 	float timer = 0;
 
 public:
 	CardGrid(const gsl::not_null<ECS::Scene*> scene, DeluEngine::GUI::UIFrame& frame, iVector2 gridSize, std::span<SDL2pp::shared_ptr<SDL2pp::Texture>> textures, SDL2pp::shared_ptr<SDL2pp::Texture> cardBack, SDL2pp::shared_ptr<SDL2pp::Texture> cardFront) :
 		SceneSystem{ scene }
 	{
+		owningFrame = &frame;
 		auto makeCardsOnClicked = [this](Card* thisCard)
 			{
 				return [this, thisCard]
@@ -123,10 +166,10 @@ public:
 			}
 		}
 
-		for(auto& card : cards)
-		{
-			std::swap(card, cards[rand() % cards.size()]);
-		}
+		//for(auto& card : cards)
+		//{
+		//	std::swap(card, cards[rand() % cards.size()]);
+		//}
 
 		for(size_t y = 0; y < gridSize.Y(); y++)
 		{
@@ -149,6 +192,11 @@ public:
 		{
 			CheckMatchingCards();
 		}
+
+		if(!victoryScreen && cards.size() == 0)
+		{
+			victoryScreen = std::make_unique<VictoryScreen>(*GetScene().GetExternalSystemAs<gsl::not_null<DeluEngine::Engine*>>(), *owningFrame);
+		}
 	}
 
 	void CheckMatchingCards()
@@ -168,63 +216,66 @@ public:
 	}
 };
 
-export auto CardMatchScene()
+
+void CardMatchSceneLoader::operator()(ECS::Scene& s) const
 {
-	return [](ECS::Scene& s)
+	std::cout << "Entered card match scene\n";
+	DeluEngine::Scene& scene = static_cast<DeluEngine::Scene&>(s);
+	DeluEngine::Engine& engine = *s.GetExternalSystemAs<gsl::not_null<DeluEngine::Engine*>>();
+	DeluEngine::SceneGUISystem& gui = scene.CreateSystem<DeluEngine::SceneGUISystem>();
+
+	DeluEngine::GUI::UIFrame& frame = gui.NewPersistentFrame();
+	frame.internalTexture = engine.renderer.backend->CreateTexture(
+		SDL_PIXELFORMAT_RGBA32,
+		SDL2pp::TextureAccess(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET),
+		1600, 900);
+	frame.internalTexture->SetBlendMode(SDL_BLENDMODE_BLEND);
+
+	std::array pngSurfaces
 	{
-		std::cout << "Entered card match scene\n";
-		DeluEngine::Scene& scene = static_cast<DeluEngine::Scene&>(s);
-		DeluEngine::Engine& engine = *s.GetExternalSystemAs<gsl::not_null<DeluEngine::Engine*>>();
-		DeluEngine::SceneGUISystem& gui = scene.CreateSystem<DeluEngine::SceneGUISystem>();
-
-		DeluEngine::GUI::UIFrame& frame = gui.NewPersistentFrame();
-		frame.internalTexture = engine.renderer.backend->CreateTexture(
-			SDL_PIXELFORMAT_RGBA32,
-			SDL2pp::TextureAccess(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET),
-			1600, 900);
-		frame.internalTexture->SetBlendMode(SDL_BLENDMODE_BLEND);
-
-		std::array pngSurfaces
-		{
-			IMG_Load("Cards/delu bonk.png"),
-			IMG_Load("Cards/deluHi.png"),
-			IMG_Load("Cards/deluminlove.png"),
-			IMG_Load("Cards/DeluNG.png"),
-			IMG_Load("Cards/DeluOk.png"),
-			IMG_Load("Cards/delupenlight.png"),
-			IMG_Load("Cards/DeluPog.png"),
-			IMG_Load("Cards/Deluthug.png"),
-			IMG_Load("Cards/deluwu.png"),
-			IMG_Load("Cards/FXtaya.png"),
-			IMG_Load("Cards/piyotaya.png"),
-			IMG_Load("Cards/syobontaya.png"),
-		};
-
-		std::array<SDL2pp::shared_ptr<SDL2pp::Texture>, pngSurfaces.size()> cardTextures;
-		SDL2pp::shared_ptr<SDL2pp::Texture> cardFrontTexture;
-		SDL2pp::shared_ptr<SDL2pp::Texture> cardBackTexture;
-		for(size_t i = 0; i < pngSurfaces.size(); i++)
-		{
-			cardTextures[i] = engine.renderer.backend->CreateTexture(pngSurfaces[i]);
-		}
-		{
-			auto surface = IMG_Load("BlankCard.png");
-			cardFrontTexture = engine.renderer.backend->CreateTexture(surface);
-			SDL_FreeSurface(surface);
-		}
-		{
-			auto surface = IMG_Load("CardBack.png");
-			cardBackTexture = engine.renderer.backend->CreateTexture(surface);
-			SDL_FreeSurface(surface);
-		}
-
-		for(auto surface : pngSurfaces)
-		{
-			SDL_FreeSurface(surface);
-		}
-
-		CardGrid& grid = scene.CreateSystem<CardGrid>(frame, iVector2{ 4, 4 }, cardTextures, cardBackTexture, cardFrontTexture);
+		IMG_Load("Cards/delu bonk.png"),
+		IMG_Load("Cards/deluHi.png"),
+		IMG_Load("Cards/deluminlove.png"),
+		IMG_Load("Cards/DeluNG.png"),
+		IMG_Load("Cards/DeluOk.png"),
+		IMG_Load("Cards/delupenlight.png"),
+		IMG_Load("Cards/DeluPog.png"),
+		IMG_Load("Cards/Deluthug.png"),
+		IMG_Load("Cards/deluwu.png"),
+		IMG_Load("Cards/FXtaya.png"),
+		IMG_Load("Cards/piyotaya.png"),
+		IMG_Load("Cards/syobontaya.png"),
 	};
+
+	std::array<SDL2pp::shared_ptr<SDL2pp::Texture>, pngSurfaces.size()> cardTextures;
+	SDL2pp::shared_ptr<SDL2pp::Texture> cardFrontTexture;
+	SDL2pp::shared_ptr<SDL2pp::Texture> cardBackTexture;
+	for(size_t i = 0; i < pngSurfaces.size(); i++)
+	{
+		cardTextures[i] = engine.renderer.backend->CreateTexture(pngSurfaces[i]);
+	}
+	{
+		auto surface = IMG_Load("BlankCard.png");
+		cardFrontTexture = engine.renderer.backend->CreateTexture(surface);
+		SDL_FreeSurface(surface);
+	}
+	{
+		auto surface = IMG_Load("CardBack.png");
+		cardBackTexture = engine.renderer.backend->CreateTexture(surface);
+		SDL_FreeSurface(surface);
+	}
+
+	for(auto surface : pngSurfaces)
+	{
+		SDL_FreeSurface(surface);
+	}
+
+	CardGrid& grid = scene.CreateSystem<CardGrid>(frame, iVector2{ 4, 4 }, cardTextures, cardBackTexture, cardFrontTexture);
+}
+
+export CardMatchSceneLoader CardMatchScene()
+{
+	return CardMatchSceneLoader();
 }
 
 using namespace xk::Math::Aliases;
