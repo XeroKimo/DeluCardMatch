@@ -655,12 +655,6 @@ namespace DeluEngine::GUI
 		virtual int HandleEvent(const Event& event);
 	};
 
-	
-	//std::unique_ptr<UIElement> UIFrame::NewElement(PositionVariant position, SizeVariant size, Vector2 pivot, UIElement* parent)
-	//{
-	//	return std::make_unique<UIElement>(*this, position, size, pivot, parent);
-	//}
-
 	DeluEngine::GUI::UIElement* GetHoveredElement(DeluEngine::GUI::UIElement& element, DeluEngine::GUI::AbsolutePosition mousePos)
 	{
 		std::vector<DeluEngine::GUI::UIElement*> children = element.GetChildren();
