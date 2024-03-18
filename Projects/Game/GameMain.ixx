@@ -39,6 +39,12 @@ export struct Card
 		FlipDown();
 	}
 
+	void SetParent(UIElement* parent)
+	{
+		backCardButton->SetParent(parent);
+		frontCard->SetParent(parent);
+	}
+
 	void FlipUp()
 	{
 		backCardButton->render = false;
@@ -69,17 +75,41 @@ export struct Card
 export struct CardGrid : public DeluEngine::SceneSystem
 {
 	std::vector<std::unique_ptr<Card>> cards;
+	std::unique_ptr<DeluEngine::GUI::UIElement> gridAligningParent;
 
 public:
 	CardGrid(const gsl::not_null<ECS::Scene*> scene, DeluEngine::GUI::UIFrame& frame, iVector2 gridSize, std::span<SDL2pp::shared_ptr<SDL2pp::Texture>> textures, SDL2pp::shared_ptr<SDL2pp::Texture> cardBack, SDL2pp::shared_ptr<SDL2pp::Texture> cardFront) :
 		SceneSystem{ scene }
 	{
-		cards.push_back(std::make_unique<Card>(frame, AspectRatioRelativeSize{ .ratio = -1, .value = 0.15f }, cardBack, cardFront, textures[4]));
-		cards.back()->SetLocalPosition(RelativePosition{ {0.5, 0.5} });
-		cards.back()->OnClicked() = [thisCard = cards.back().get()]
+
+		gridAligningParent = frame.NewElement<UIElement>(RelativePosition{ { 0.5f, 0.5f } }, AspectRatioRelativeSize{ .ratio = -1, .value = 0.9f }, { 0.5f, 0.5f }, nullptr);
 		{
-			thisCard->FlipUp();
-		};
+			size_t totalCards = gridSize.X() * gridSize.Y();
+			for(size_t i = 0, cardTextureCounter = 0; i < totalCards; i += 2, cardTextureCounter++)
+			{
+				cards.push_back(std::make_unique<Card>(frame, RelativeSize{ { 1.f / gridSize.X(), 1.f / gridSize.Y() } }, cardBack, cardFront, textures[cardTextureCounter % textures.size()]));
+				cards.back()->SetParent(gridAligningParent.get());
+				cards.back()->OnClicked() = [thisCard = cards.back().get()]
+					{
+						thisCard->FlipUp();
+					};
+				cards.push_back(std::make_unique<Card>(frame, RelativeSize{ { 1.f / gridSize.X(), 1.f / gridSize.Y() } }, cardBack, cardFront, textures[cardTextureCounter % textures.size()]));
+				cards.back()->SetParent(gridAligningParent.get());
+				cards.back()->OnClicked() = [thisCard = cards.back().get()]
+					{
+						thisCard->FlipUp();
+					};
+			}
+		}
+
+		for(size_t y = 0; y < gridSize.Y(); y++)
+		{
+			for(size_t x = 0; x < gridSize.X(); x++)
+			{
+				auto cardSize = cards[y * gridSize.X() + x]->frontCard->GetLocalSizeAs<RelativeSize>();
+				cards[y * gridSize.X() + x]->SetLocalPosition(ConvertPivotEquivalentRelativePosition({ 0, 0 }, { 0.5f, 0.5f }, RelativePosition{ { static_cast<float>(x) / gridSize.X(), static_cast<float>(y) / gridSize.Y() } }, cardSize, gridAligningParent->GetFrameSizeAs<AbsoluteSize>()));
+			}
+		}
 
 	}
 };
