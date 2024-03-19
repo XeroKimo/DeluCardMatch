@@ -77,7 +77,9 @@ namespace DeluEngine
 		Left,
 		Right,
 		Up,
-		Down
+		Down,
+
+		Escape
 	};
 
 	std::pair<Key, KeyState> MapKey(const SDL_KeyboardEvent& event)
@@ -196,6 +198,10 @@ namespace DeluEngine
 			break;
 		case SDLK_z:
 			key = Z;
+			break;
+
+		case SDLK_ESCAPE:
+			key = Escape;
 			break;
 
 		default:
@@ -553,41 +559,28 @@ namespace DeluEngine
 			std::vector<gsl::not_null<ControllerContext*>> m_contextStack;
 
 		public:
-			void RegisterContext(std::string contextName, ControllerContext context)
-			{
-				auto [it, added] = m_registeredContexts.insert({ contextName, std::move(context) });
-
-				if (!added)
-					throw std::logic_error{ "Controller context name conflict: " + contextName };
-			}
 
 			void RegisterContext(std::string_view contextName, ControllerContext context)
 			{
-				RegisterContext(std::string{ contextName }, std::move(context));
-			}
+				auto [it, added] = m_registeredContexts.insert({ std::string{ contextName}, std::move(context) });
 
-			ControllerContext& FindContext(std::string contextName)
-			{
-				auto it = m_registeredContexts.find(contextName);
-				if (it == m_registeredContexts.end())
-					throw std::logic_error{ "Could not find matching action: " + contextName };
+				if(!added)
+					throw std::logic_error{ "Controller context name conflict: " + std::string{ contextName } };
 
-				return it->second;
 			}
 
 			ControllerContext& FindContext(std::string_view contextName)
 			{
-				return FindContext(std::string{ contextName });
-			}
+				auto it = m_registeredContexts.find(std::string{ contextName });
+				if(it == m_registeredContexts.end())
+					throw std::logic_error{ "Could not find matching action: " + std::string{ contextName } };
 
-			void PushContext(std::string contextName)
-			{
-				m_contextStack.push_back(&m_registeredContexts.at(contextName));
+				return it->second;
 			}
 
 			void PushContext(std::string_view contextName)
 			{
-				PushContext(std::string{ contextName });
+				m_contextStack.push_back(&m_registeredContexts.at(std::string{ contextName }));
 			}
 
 			void PopContext()

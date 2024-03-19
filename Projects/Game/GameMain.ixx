@@ -115,6 +115,59 @@ export struct VictoryScreen
 	}
 };
 
+export struct PauseScreen
+{
+	std::unique_ptr<DeluEngine::GUI::Image> blankScreen;
+	std::unique_ptr<DeluEngine::GUI::Button> quitButton;
+	std::unique_ptr<DeluEngine::GUI::Button> retryButton;
+	std::unique_ptr<DeluEngine::GUI::Button> resumeButton;
+	DeluEngine::Engine* e;
+	PauseScreen(DeluEngine::Engine& engine, DeluEngine::GUI::UIFrame& frame)
+	{
+		e = &engine;
+		auto blankScreenTexture = engine.renderer.backend->CreateTexture(
+			SDL_PIXELFORMAT_RGBA32,
+			SDL2pp::TextureAccess(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET),
+			64, 64);
+
+		blankScreen = frame.NewElement<Image>({}, RelativeSize{ { 1.f, 1.f } }, {}, nullptr, std::move(blankScreenTexture));
+
+		engine.controllerContext.PushContext("Pause");
+
+		SDL_Surface* quitButtonPNG = IMG_Load("Quit_Button.png");
+		SDL_Surface* retryButtonPNG = IMG_Load("PlayAgain_Button.png");
+		SDL_Surface* resumeButtonPNG = IMG_Load("Resume_Button.png");
+
+		quitButton = frame.NewElement<DeluEngine::GUI::Button>(RelativePosition{ { 0.3f, 0.33f } }, DeluEngine::GUI::AbsoluteSize{ { quitButtonPNG->w, quitButtonPNG->h } }, Vector2{ 0.5f, 0.0f }, nullptr, engine.renderer.backend->CreateTexture(quitButtonPNG));
+		quitButton->ConvertUnderlyingSizeRepresentation<AspectRatioRelativeSize>();
+		retryButton = frame.NewElement<DeluEngine::GUI::Button>(RelativePosition{ { 0.5f, 0.33f } }, DeluEngine::GUI::AbsoluteSize{ { retryButtonPNG->w, retryButtonPNG->h } }, Vector2{ 0.5f, 0.0f }, nullptr, engine.renderer.backend->CreateTexture(retryButtonPNG));
+		retryButton->ConvertUnderlyingSizeRepresentation<AspectRatioRelativeSize>();
+		resumeButton = frame.NewElement<DeluEngine::GUI::Button>(RelativePosition{ { 0.7f, 0.33f } }, DeluEngine::GUI::AbsoluteSize{ { resumeButtonPNG->w, resumeButtonPNG->h } }, Vector2{ 0.5f, 0.0f }, nullptr, engine.renderer.backend->CreateTexture(resumeButtonPNG));
+		resumeButton->ConvertUnderlyingSizeRepresentation<AspectRatioRelativeSize>();
+
+
+		retryButton->onClicked = [&]
+			{
+				engine.queuedScene = CardMatchScene();
+			};
+
+		quitButton->onClicked = [&]
+			{
+				engine.running = false;
+			};
+
+		SDL_FreeSurface(quitButtonPNG);
+		SDL_FreeSurface(retryButtonPNG);
+		SDL_FreeSurface(resumeButtonPNG);
+
+	}
+
+	~PauseScreen()
+	{
+		e->controllerContext.PopContext();
+	}
+};
+
 export struct CardGrid : public DeluEngine::SceneSystem
 {
 	std::vector<std::unique_ptr<Card>> cards;
@@ -122,18 +175,25 @@ export struct CardGrid : public DeluEngine::SceneSystem
 	std::unique_ptr<Text> gameTimeText;
 	std::unique_ptr<Text> moveCountText;
 	std::unique_ptr<VictoryScreen> victoryScreen;
+	std::unique_ptr<PauseScreen> pauseScreen;
 
 	std::array<Card*, 2> selectedCards{};
 	DeluEngine::GUI::UIFrame* owningFrame;
 	float timer = 0;
 	float gameTime = 0;
 	int moveCount = 0;
+	bool pendingClosePauseScreen = false;
 
 public:
 	CardGrid(const gsl::not_null<ECS::Scene*> scene, DeluEngine::GUI::UIFrame& frame, iVector2 gridSize, std::span<SDL2pp::shared_ptr<SDL2pp::Texture>> textures, SDL2pp::shared_ptr<SDL2pp::Texture> cardBack, SDL2pp::shared_ptr<SDL2pp::Texture> cardFront) :
 		SceneSystem{ scene }
 	{
 		owningFrame = &frame;
+
+
+		DeluEngine::Engine& engine = static_cast<DeluEngine::Scene&>(GetScene()).GetEngine();
+		engine.controllerContext.PushContext("Game");
+		engine.controllerContext.GetCurrentContext().FindAction("Pause").BindButton([this](bool) { OpenPauseMenu();  });
 
 		TTF_Font* arialFont = TTF_OpenFont("arial.ttf", 20);
 
@@ -197,8 +257,22 @@ public:
 		}
 	}
 
+	~CardGrid()
+	{
+		DeluEngine::Engine& engine = static_cast<DeluEngine::Scene&>(GetScene()).GetEngine();
+		engine.controllerContext.PopContext();
+	}
+
 	void Update(float deltaTime) override
 	{
+		if(pendingClosePauseScreen)
+		{
+			ClosePauseMenu();
+			pendingClosePauseScreen = false;
+		}
+		if(pauseScreen)
+			return;
+
 		if(!victoryScreen)
 		{
 			gameTime += deltaTime;
@@ -240,6 +314,23 @@ public:
 		}
 		selectedCards[0] = selectedCards[1] = nullptr;
 		timer = 0;
+	}
+
+	void OpenPauseMenu()
+	{
+		pauseScreen = std::make_unique<PauseScreen>(*GetScene().GetExternalSystemAs<gsl::not_null<DeluEngine::Engine*>>(), *owningFrame);
+
+		DeluEngine::Engine& engine = *GetScene().GetExternalSystemAs<gsl::not_null<DeluEngine::Engine*>>();
+		engine.controllerContext.GetCurrentContext().FindAction("Resume").BindButton([this](bool) { ClosePauseMenu();  });
+
+		pauseScreen->resumeButton->onClicked = [this] { pendingClosePauseScreen = true; };
+	}
+
+	void ClosePauseMenu()
+	{
+		pauseScreen = nullptr;
+		DeluEngine::Engine& engine = *GetScene().GetExternalSystemAs<gsl::not_null<DeluEngine::Engine*>>();
+		engine.guiEngine.ResetHoveredElements();
 	}
 };
 
@@ -364,5 +455,26 @@ export auto TitleScene()
 export std::function<void(ECS::Scene&)> GameMain(DeluEngine::Engine& engine)
 {
 	std::srand(std::time(nullptr));
+
+	{
+		DeluEngine::Experimental::ControllerContext gameContext;
+		DeluEngine::Experimental::ControllerAction pause;
+		pause.name = "Pause";
+		pause.invocationState = DeluEngine::KeyState::Pressed;
+		pause.action = DeluEngine::Experimental::Button{ .inputs{{ DeluEngine::Key::Escape }} };
+		gameContext.actions.push_back(pause);
+
+		engine.controllerContext.RegisterContext("Game", gameContext);
+	}
+	{
+		DeluEngine::Experimental::ControllerContext pauseContext;
+		DeluEngine::Experimental::ControllerAction resume;
+		resume.name = "Resume";
+		resume.invocationState = DeluEngine::KeyState::Pressed;
+		resume.action = DeluEngine::Experimental::Button{ .inputs{ {DeluEngine::Key::Escape }} };
+		pauseContext.actions.push_back(resume);
+
+		engine.controllerContext.RegisterContext("Pause", pauseContext);
+	}
 	return TitleScene();
 }
