@@ -11,6 +11,7 @@ module;
 #include <span>
 #include <cstdlib>
 #include <ctime>
+#include <format>
 
 export module DeluGame;
 import xk.Math.Matrix;
@@ -118,18 +119,31 @@ export struct CardGrid : public DeluEngine::SceneSystem
 {
 	std::vector<std::unique_ptr<Card>> cards;
 	std::unique_ptr<DeluEngine::GUI::UIElement> gridAligningParent;
-
+	std::unique_ptr<Text> gameTimeText;
+	std::unique_ptr<Text> moveCountText;
 	std::unique_ptr<VictoryScreen> victoryScreen;
 
 	std::array<Card*, 2> selectedCards{};
 	DeluEngine::GUI::UIFrame* owningFrame;
 	float timer = 0;
+	float gameTime = 0;
+	int moveCount = 0;
 
 public:
 	CardGrid(const gsl::not_null<ECS::Scene*> scene, DeluEngine::GUI::UIFrame& frame, iVector2 gridSize, std::span<SDL2pp::shared_ptr<SDL2pp::Texture>> textures, SDL2pp::shared_ptr<SDL2pp::Texture> cardBack, SDL2pp::shared_ptr<SDL2pp::Texture> cardFront) :
 		SceneSystem{ scene }
 	{
 		owningFrame = &frame;
+
+		TTF_Font* arialFont = TTF_OpenFont("arial.ttf", 20);
+
+		moveCountText = frame.NewElement<Text>(RelativePosition{ {0.05f, 0.9f} }, RelativeSize{ { 0.15f, 0.1f } }, { 0, 1 }, nullptr);
+		gameTimeText = frame.NewElement<Text>(RelativePosition{ {0.05f, 0.95f} }, RelativeSize{ { 0.15f, 0.1f } }, { 0, 1 }, nullptr);
+
+		moveCountText->SetText(std::format("Moves: {}", moveCount));
+		moveCountText->SetFont(arialFont);
+		gameTimeText->SetText(std::format("Time: {}", timer));
+		gameTimeText->SetFont(arialFont);
 		auto makeCardsOnClicked = [this](Card* thisCard)
 			{
 				return [this, thisCard]
@@ -148,6 +162,8 @@ public:
 						{
 							selectedCards[1] = thisCard;
 							thisCard->FlipUp();
+							moveCount++;
+							moveCountText->SetText(std::format("Moves: {}", moveCount));
 						}
 					};
 			};
@@ -166,10 +182,10 @@ public:
 			}
 		}
 
-		//for(auto& card : cards)
-		//{
-		//	std::swap(card, cards[rand() % cards.size()]);
-		//}
+		for(auto& card : cards)
+		{
+			std::swap(card, cards[rand() % cards.size()]);
+		}
 
 		for(size_t y = 0; y < gridSize.Y(); y++)
 		{
@@ -183,6 +199,12 @@ public:
 
 	void Update(float deltaTime) override
 	{
+		if(!victoryScreen)
+		{
+			gameTime += deltaTime;
+			gameTimeText->SetText(std::format("Time: {}", gameTime));
+		}
+
 		if(selectedCards[0] != nullptr && selectedCards[1] != nullptr)
 		{
 			timer += deltaTime;
@@ -196,6 +218,11 @@ public:
 		if(!victoryScreen && cards.size() == 0)
 		{
 			victoryScreen = std::make_unique<VictoryScreen>(*GetScene().GetExternalSystemAs<gsl::not_null<DeluEngine::Engine*>>(), *owningFrame);
+			gameTimeText->SetFramePosition(RelativePosition{ {0.5f, 0.8f} });
+			gameTimeText->SetPivot({0.5f, 0.5f});
+
+			moveCountText->SetFramePosition(RelativePosition{ {0.5f, 0.75f} });
+			moveCountText->SetPivot({0.5f, 0.5f});
 		}
 	}
 
