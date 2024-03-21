@@ -386,6 +386,11 @@ void CardMatchSceneLoader::operator()(ECS::Scene& s) const
 	{
 		cardTextures[i] = engine.renderer.backend->CreateTexture(pngSurfaces[i]);
 	}
+
+	for(auto& card : cardTextures)
+	{
+		card.swap(cardTextures[rand() % cardTextures.size()]);
+	}
 	{
 		auto surface = IMG_Load("BlankCard.png");
 		cardFrontTexture = engine.renderer.backend->CreateTexture(surface);
