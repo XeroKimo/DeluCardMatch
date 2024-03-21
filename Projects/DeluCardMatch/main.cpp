@@ -3,6 +3,7 @@
 #include <chrono>
 #include <box2d/box2d.h>
 #include <span>
+#include <SDL_mixer.h>
 
 import DeluEngine;
 import xk.Math.Matrix;
@@ -89,6 +90,9 @@ int main()
 		.window{ SDL2pp::CreateWindow("Bullet Hell", { 1600, 900 }, SDL2pp::WindowFlag::OpenGL) },
 		.renderer{ engine.window.get() }
 	};
+	SDL_Init(SDL_INIT_AUDIO);
+
+	Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
 	engine.box2DCallbacks.engine = &engine;
 	engine.physicsWorld.SetContactListener(&engine.box2DCallbacks);
 	engine.physicsWorld.SetDebugDraw(&engine.box2DCallbacks);
@@ -102,7 +106,6 @@ int main()
 		});
 
 	std::chrono::duration<float> physicsAccumulator{ 0.f };
-
 	while(engine.running)
 	{
 		SDL2pp::Event event;

@@ -12,6 +12,7 @@ module;
 #include <cstdlib>
 #include <ctime>
 #include <format>
+#include <SDL_mixer.h>
 
 export module DeluGame;
 import xk.Math.Matrix;
@@ -27,6 +28,10 @@ import SDL2pp;
 using namespace xk::Math::Aliases;
 
 using namespace DeluEngine::GUI;
+
+std::array<Mix_Chunk*, 3> correctEffects;
+std::array<Mix_Chunk*, 4> missEffects;
+Mix_Music* bgm;
 
 export struct Card
 {
@@ -224,6 +229,7 @@ public:
 							thisCard->FlipUp();
 							moveCount++;
 							moveCountText->SetText(std::format("Moves: {}", moveCount));
+							PlayCardPairAudio();
 						}
 					};
 			};
@@ -298,6 +304,14 @@ public:
 			moveCountText->SetFramePosition(RelativePosition{ {0.5f, 0.75f} });
 			moveCountText->SetPivot({0.5f, 0.5f});
 		}
+	}
+
+	void PlayCardPairAudio()
+	{
+		if(selectedCards[0]->GetType() == selectedCards[1]->GetType())
+			Mix_PlayChannel(-1, correctEffects[std::rand() % correctEffects.size()], 0);
+		else
+			Mix_PlayChannel(-1, missEffects[std::rand() % missEffects.size()], 0);
 	}
 
 	void CheckMatchingCards()
@@ -476,5 +490,22 @@ export std::function<void(ECS::Scene&)> GameMain(DeluEngine::Engine& engine)
 
 		engine.controllerContext.RegisterContext("Pause", pauseContext);
 	}
+	
+	correctEffects[0] = Mix_LoadWAV("delu_wao.wav");
+	correctEffects[1] = Mix_LoadWAV("delu_doya.wav");
+	correctEffects[2] = Mix_LoadWAV("delu_nice.wav");
+	missEffects[0] = Mix_LoadWAV("delu_a.wav");
+	missEffects[1] = Mix_LoadWAV("delu_EEEE.wav");
+	missEffects[2] = Mix_LoadWAV("delu_UWEEEE.wav");
+	missEffects[3] = Mix_LoadWAV("delu_oya.wav");
+	bgm = Mix_LoadMUS("You_and_Me_2.wav");
+	Mix_PlayMusic(bgm, -1);
+	Mix_VolumeChunk(correctEffects[0], MIX_MAX_VOLUME / 3);
+	Mix_VolumeChunk(correctEffects[1], MIX_MAX_VOLUME / 3);
+	Mix_VolumeChunk(correctEffects[2], MIX_MAX_VOLUME / 3);
+	Mix_VolumeChunk(missEffects[0], MIX_MAX_VOLUME / 3);
+	Mix_VolumeChunk(missEffects[1], MIX_MAX_VOLUME / 3);
+	Mix_VolumeChunk(missEffects[3], MIX_MAX_VOLUME / 3);
+	Mix_VolumeMusic(MIX_MAX_VOLUME / 2);
 	return TitleScene();
 }
