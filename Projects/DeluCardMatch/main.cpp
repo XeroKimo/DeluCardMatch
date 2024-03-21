@@ -83,9 +83,14 @@ void DrawFrame(DeluEngine::Renderer& renderer, DeluEngine::GUI::UIFrame& frame)
 
 void Render(DeluEngine::Engine& engine);
 #undef CreateWindow
+
+#ifdef _CONSOLE
 int main()
+#else
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
+	PSTR lpCmdLine, int nCmdShow)
+#endif
 {
-	ShowWindow(GetConsoleWindow(), SW_HIDE);
 	ApplicationTimer timer;
 	DeluEngine::Engine engine
 	{
