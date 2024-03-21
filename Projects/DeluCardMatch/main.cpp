@@ -4,6 +4,7 @@
 #include <box2d/box2d.h>
 #include <span>
 #include <SDL_mixer.h>
+#include <Windows.h>
 
 import DeluEngine;
 import xk.Math.Matrix;
@@ -81,9 +82,10 @@ void DrawFrame(DeluEngine::Renderer& renderer, DeluEngine::GUI::UIFrame& frame)
 }
 
 void Render(DeluEngine::Engine& engine);
-
+#undef CreateWindow
 int main()
 {
+	ShowWindow(GetConsoleWindow(), SW_HIDE);
 	ApplicationTimer timer;
 	DeluEngine::Engine engine
 	{
