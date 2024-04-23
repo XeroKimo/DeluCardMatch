@@ -8,7 +8,7 @@ module;
 #include <SDL2/SDL_ttf.h>
 
 module DeluEngine:GUI;
-import :Renderer;
+//import :Renderer;
 import SDL2pp;
 
 namespace DeluEngine::GUI
@@ -106,10 +106,10 @@ namespace DeluEngine::GUI
 	{
 		DeluEngine::GUI::Rect baseRect = element.GetRect();
 		SDL2pp::FRect rect;
-		const Vector2 size = element.GetFrameSizeAs<DeluEngine::GUI::AbsoluteSize>().value;
-		const Vector2 pivotOffsetFlip = { 0, size.Y() };
-		const Vector2 sdl2YFlip = { 0, element.GetFrame().GetSize().Y() };
-		const Vector2 position = xk::Math::HadamardProduct(baseRect.bottomLeft.value + pivotOffsetFlip, Vector2{ 1, -1 }) + sdl2YFlip;
+		const xk::Math::Aliases::Vector2 size = element.GetFrameSizeAs<DeluEngine::GUI::AbsoluteSize>().value;
+		const xk::Math::Aliases::Vector2 pivotOffsetFlip = { 0, size.Y() };
+		const xk::Math::Aliases::Vector2 sdl2YFlip = { 0, element.GetFrame().GetSize().Y() };
+		const xk::Math::Aliases::Vector2 position = xk::Math::HadamardProduct(baseRect.bottomLeft.value + pivotOffsetFlip,  xk::Math::Aliases::Vector2{ 1, -1 }) + sdl2YFlip;
 
 		rect.x = position.X();
 		rect.y = position.Y();
@@ -240,13 +240,13 @@ namespace DeluEngine::GUI
 			}, event);
 	}
 
-	void ProcessEvent(GUIEngine& engine, const SDL2pp::Event& event, Vector2 windowSize)
+	void ProcessEvent(GUIEngine& engine, const SDL2pp::Event& event,  xk::Math::Aliases::Vector2 windowSize)
 	{
 		switch(event.type)
 		{
 		case SDL2pp::EventType::SDL_MOUSEMOTION:
 		{
-			engine.mousePosition.value = Vector2{ event.motion.x, windowSize.Y() - event.motion.y };
+			engine.mousePosition.value =  xk::Math::Aliases::Vector2{ event.motion.x, windowSize.Y() - event.motion.y };
 			break;
 		}
 		case SDL2pp::EventType::SDL_MOUSEBUTTONDOWN:

@@ -12,7 +12,7 @@ module;
 #include <cstdlib>
 #include <ctime>
 #include <format>
-#include <SDL_mixer.h>
+#include <SDL2/SDL_mixer.h>
 
 export module DeluGame;
 import xk.Math.Matrix;
@@ -84,11 +84,11 @@ export struct Card
 
 export struct CardMatchSceneLoader
 {
-
+	iVector2 cardCount;
 	void operator()(ECS::Scene& s) const;
 };
 
-export CardMatchSceneLoader CardMatchScene();
+export CardMatchSceneLoader CardMatchScene(iVector2 cardCount);
 
 export struct VictoryScreen
 {
@@ -107,7 +107,7 @@ export struct VictoryScreen
 
 		retryButton->onClicked = [&engine]
 			{
-				engine.queuedScene = CardMatchScene();
+				engine.queuedScene = CardMatchScene({ 6, 6 });
 			};
 
 		quitButton->onClicked = [&engine]
@@ -153,7 +153,7 @@ export struct PauseScreen
 
 		retryButton->onClicked = [&]
 			{
-				engine.queuedScene = CardMatchScene();
+				engine.queuedScene = CardMatchScene({ 6, 6 });
 			};
 
 		quitButton->onClicked = [&]
@@ -407,12 +407,12 @@ void CardMatchSceneLoader::operator()(ECS::Scene& s) const
 		SDL_FreeSurface(surface);
 	}
 
-	CardGrid& grid = scene.CreateSystem<CardGrid>(frame, iVector2{ 4, 4 }, cardTextures, cardBackTexture, cardFrontTexture);
+	CardGrid& grid = scene.CreateSystem<CardGrid>(frame, cardCount, cardTextures, cardBackTexture, cardFrontTexture);
 }
 
-export CardMatchSceneLoader CardMatchScene()
+export CardMatchSceneLoader CardMatchScene(iVector2 cardCount)
 {
-	return CardMatchSceneLoader();
+	return CardMatchSceneLoader(cardCount);
 }
 
 using namespace xk::Math::Aliases;
@@ -462,7 +462,7 @@ export auto TitleScene()
 		playButton->ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::AspectRatioRelativeSize>();
 		playButton->onClicked = [&engine]
 			{
-				engine.queuedScene = CardMatchScene();
+				engine.queuedScene = CardMatchScene({5, 5});
 			};
 
 		SDL_FreeSurface(quitButtonPNG);

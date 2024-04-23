@@ -24,19 +24,19 @@ export namespace SDL2pp
 
 	using KeyCode = SDL_KeyCode;
 
-	struct Color : private xk::Math::Aliases::u8Vector4
+	struct Color
 	{
-		using xk::Math::Aliases::u8Vector4::Vector;
+		xk::Math::Aliases::u8Vector4 value;
 
-		reference R() noexcept { return X(); }
-		reference G() noexcept { return Y(); }
-		reference B() noexcept { return Z(); }
-		reference A() noexcept { return W(); }
+		auto& R() noexcept { return value.X(); }
+		auto& G() noexcept { return value.Y(); }
+		auto& B() noexcept { return value.Z(); }
+		auto& A() noexcept { return value.W(); }
 
-		const_reference R() const noexcept { return X(); }
-		const_reference G() const noexcept { return Y(); }
-		const_reference B() const noexcept { return Z(); }
-		const_reference A() const noexcept { return W(); }
+		const auto& R() const noexcept { return value.X(); }
+		const auto& G() const noexcept { return value.Y(); }
+		const auto& B() const noexcept { return value.Z(); }
+		const auto& A() const noexcept { return value.W(); }
 	};
 
 	auto PollEvent(Event& event) { return SDL_PollEvent(&event); }

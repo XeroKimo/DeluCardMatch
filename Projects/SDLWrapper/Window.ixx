@@ -15,7 +15,6 @@ import xk.Math.Matrix;
 
 namespace SDL2pp
 {
-	using namespace xk::Math::Aliases;
 	template<>
 	struct SDL2Destructor<Window>
 	{
@@ -29,21 +28,21 @@ namespace SDL2pp
 		using object_type = Window;
 		using self_type = DerivedSelf;
 
-		void SetPosition(iVector2 position)
+		void SetPosition(xk::Math::Aliases::iVector2 position)
 		{
 			SDL_SetWindowPosition(&Get(), position.X(), position.Y());
 		}
 
-		iVector2 GetPosition() const noexcept
+		xk::Math::Aliases::iVector2 GetPosition() const noexcept
 		{
-			iVector2 position;
+			xk::Math::Aliases::iVector2 position;
 			SDL_GetWindowPosition(&Get(), &position.X(), &position.Y());
 			return position;
 		}
 
-		iVector2 GetSize() const noexcept
+		xk::Math::Aliases::iVector2 GetSize() const noexcept
 		{
-			iVector2 size;
+			xk::Math::Aliases::iVector2 size;
 			SDL_GetWindowSize(&Get(), &size.X(), &size.Y());
 			return size;
 		}
@@ -86,9 +85,9 @@ namespace SDL2pp
 
 	DECLARE_ENUM_BIT_FLAGS(WindowFlag);
 
-	export unique_ptr<Window> CreateWindow(std::string_view title, iVector2 size, WindowFlag flags, std::optional<iVector2> position = std::nullopt)
+	export unique_ptr<Window> CreateWindow(std::string_view title, xk::Math::Aliases::iVector2 size, WindowFlag flags, std::optional<xk::Math::Aliases::iVector2> position = std::nullopt)
 	{
-		iVector2 unwrappedPosition = position.value_or(iVector2{ SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED });
+		xk::Math::Aliases::iVector2 unwrappedPosition = position.value_or(xk::Math::Aliases::iVector2{ SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED });
 		return unique_ptr<Window>{ ThrowIfNullptr(SDL_CreateWindow(title.data(), unwrappedPosition.X(), unwrappedPosition.Y(), size.X(), size.Y(), static_cast<std::underlying_type_t<WindowFlag>>(flags)), "Failed to create window")};
 	}
 };

@@ -10,14 +10,13 @@ module;
 
 export module DeluEngine:ECS;
 export import ECS;
+import :ForewardDeclares;
 import :EngineAware;
 import :GUI;
 import SDL2pp;
 
 namespace DeluEngine
 {
-	export struct Engine;
-
 	export class GameObject;
 	export class DebugRenderer;
 	export class Scene;
@@ -26,7 +25,11 @@ namespace DeluEngine
 	{
 	public:
 		using ObjectBaseClasses = ECS::ObjectBaseClassesHelper<ECS::GameObject>;
-		using ECS::GameObject::GameObject;
+		//using ECS::GameObject::GameObject;
+		GameObject(const ECS::ObjectInitializer& initializer, const ECS::UserGameObjectInitializer& goInitializer) :
+			ECS::GameObject(initializer, goInitializer)
+		{
+		}
 
 	public:
 		virtual void Update(float deltaTime) = 0;
@@ -36,8 +39,6 @@ namespace DeluEngine
 		Engine& GetEngine() const noexcept;
 		Scene& GetScene() const noexcept;
 	};
-
-	export class Scene;
 
 	export class SceneInit
 	{
@@ -115,16 +116,10 @@ namespace DeluEngine
 			});
 		}
 
-		Engine& GetEngine() const
-		{
-			return *GetExternalSystemAs<gsl::not_null<Engine*>>();
-		}
+		Engine& GetEngine() const;
 	};
 
-	Engine& GameObject::GetEngine() const noexcept
-	{
-		return static_cast<const Scene&>(ECS::GameObject::GetScene()).GetEngine();
-	}
+
 
 	Scene& GameObject::GetScene() const noexcept
 	{

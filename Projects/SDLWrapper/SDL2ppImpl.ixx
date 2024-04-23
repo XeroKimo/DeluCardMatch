@@ -1,14 +1,13 @@
 module;
-
+#include <memory>
+#include <SDL2/SDL.h>
+#include <format>
+#include <stdexcept>
+#include <concepts>
+#include <string_view>
+#include <compare>
 
 export module SDL2pp:Impl;
-export import <memory>			;
-export import <SDL2/SDL.h>		;
-export import <format>			;
-export import <stdexcept>		;
-export import <concepts>		;
-export import <string_view>		;
-export import <compare>			;
 
 namespace SDL2pp
 {

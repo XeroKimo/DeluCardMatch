@@ -3,9 +3,10 @@ module;
 #include <memory>
 
 export module DeluEngine:SpriteComponent;
-import :Engine;
-export import :ECS;
-export import :Renderer;
+import :ForewardDeclares;
+import :ECS;
+//export import :ECS;
+import :Renderer;
 
 namespace DeluEngine
 {
@@ -24,13 +25,7 @@ namespace DeluEngine
 		using ObjectBaseClasses = ECS::ObjectBaseClassesHelper<DeluEngine::GameObject>;
 
 	public:
-		SpriteObject(const ECS::ObjectInitializer& initializer, const ECS::UserGameObjectInitializer& goInitializer, ConstructorParams params = {}) :
-			//SceneAware(initializer.scene),
-			GameObject(initializer, goInitializer),
-			m_spriteHandle(GetEngine().renderer.CreateSprite(params.sprite))
-		{
-
-		}
+		SpriteObject(const ECS::ObjectInitializer& initializer, const ECS::UserGameObjectInitializer& goInitializer, ConstructorParams params = {});
 
 	public:
 		void Update(float deltaTime) override

@@ -8,8 +8,9 @@ module;
 #include <fstream>
 #include <string_view>
 #include <functional>
-#include <SDL2/SDL_ttf.h>
 #include <span>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 
 export module DeluEngine:Renderer;
 export import SDL2pp;
@@ -19,7 +20,6 @@ import xk.Math.Color;
 
 namespace DeluEngine
 {
-	using namespace xk::Math::Aliases;
 	export class Renderer;
 
 	export struct SpriteData
@@ -31,7 +31,7 @@ namespace DeluEngine
 	export class Sprite
 	{
 	public:
-		Vector2 position;
+		xk::Math::Aliases::Vector2 position;
 		xk::Math::Degree<float> angle;
 
 	private:
@@ -73,12 +73,12 @@ namespace DeluEngine
 
 		void SetDrawColor(xk::Math::Color color)
 		{
-			m_backend->SetDrawColor({color[0], color[1], color[2], color[3]});
+			m_backend->SetDrawColor({ { color.R(), color.G(), color.B(), color.A() } });
 		}
 
-		void DrawLine(Vector2 p1, Vector2 p2)
+		void DrawLine(xk::Math::Aliases::Vector2 p1, xk::Math::Aliases::Vector2 p2)
 		{
-			iVector2 outputSize = m_backend->GetOutputSize();
+			xk::Math::Aliases::Vector2 outputSize = m_backend->GetOutputSize();
 			p1.Y() = -p1.Y() + outputSize.Y();
 			p2.Y() = -p2.Y() + outputSize.Y();
 			m_backend->DrawLine(p1, p2);
@@ -103,7 +103,7 @@ namespace DeluEngine
 	public:
 		std::shared_ptr<SpriteData> defaultSpriteData;
 		SDL2pp::unique_ptr<SDL2pp::Renderer> backend;
-		SDL2pp::Color clearColor = SDL2pp::Color{ 96.f, 128, 255, 255 };
+		SDL2pp::Color clearColor = SDL2pp::Color{ { 96.f, 128, 255, 255 } };
 		std::vector<std::function<void(DebugRenderer&)>> debugCallbacks;
 	public:
 		Renderer(SDL2pp::view_ptr<SDL2pp::Window> window, int deviceIndex = -1, SDL2pp::RendererFlag flags = SDL2pp::RendererFlag::Accelerated) :

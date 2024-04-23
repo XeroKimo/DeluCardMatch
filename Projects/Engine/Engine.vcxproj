@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Components\SpriteComponent.cpp" />
     <ClCompile Include="Components\SpriteComponent.ixx" />
     <ClCompile Include="Controller.ixx" />
     <ClCompile Include="DeluEngine.ixx" />
@@ -26,6 +27,7 @@
     <ClCompile Include="ECS.ixx" />
     <ClCompile Include="Engine.ixx" />
     <ClCompile Include="EngineAware.ixx" />
+    <ClCompile Include="ForewardDeclares.ixx" />
     <ClCompile Include="GUI.cpp" />
     <ClCompile Include="GUI.ixx" />
     <ClCompile Include="Physics.cpp" />

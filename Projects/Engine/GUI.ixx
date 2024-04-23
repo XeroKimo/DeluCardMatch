@@ -15,37 +15,38 @@ export module DeluEngine:GUI;
 import xk.Math.Matrix;
 import xk.Math.Algorithms;
 import SDL2pp;
+import :Renderer;
 
 
-namespace DeluEngine
-{
-	export class Renderer;
-}
+//namespace DeluEngine
+//{
+//	export class Renderer;
+//}
 
 namespace DeluEngine::GUI
 {
-	using namespace xk::Math::Aliases;
+	//using namespace xk::Math::Aliases;
 
 	export struct AbsolutePosition
 	{
-		Vector2 value;
+		xk::Math::Aliases::Vector2 value;
 	};
 
 	export struct RelativePosition
 	{
-		Vector2 value;
+		xk::Math::Aliases::Vector2 value;
 	};
 
 	//Keeps the size of the element between all screen sizes
 	export struct AbsoluteSize
 	{
-		Vector2 value;
+		xk::Math::Aliases::Vector2 value;
 	};
 
 	//Keeps the percentage of the screen size constant between screen sizes
 	export struct RelativeSize
 	{
-		Vector2 value;
+		xk::Math::Aliases::Vector2 value;
 	};
 
 	//Keeps the aspect ratio of the element constant between screen sizes
@@ -58,7 +59,7 @@ namespace DeluEngine::GUI
 	//Keeps the edge of the element to the edge of the parent relatively constant between screen sizes
 	export struct BorderConstantRelativeSize
 	{
-		Vector2 value;
+		xk::Math::Aliases::Vector2 value;
 	};
 
 	template<class T, class U> struct IsVariantMember;
@@ -129,9 +130,9 @@ namespace DeluEngine::GUI
 			{
 				const auto [min, max] = std::minmax(parentSize.value.X(), parentSize.value.Y());
 				if(parentSize.value.X() >= parentSize.value.Y())
-					return std::pair(Vector2{ max - min, 0 }, Vector2{ min, min });
+					return std::pair(xk::Math::Aliases::Vector2{ max - min, 0 }, xk::Math::Aliases::Vector2{ min, min });
 				else
-					return std::pair(Vector2{ 0, max - min }, Vector2{ min, min });
+					return std::pair(xk::Math::Aliases::Vector2{ 0, max - min }, xk::Math::Aliases::Vector2{ min, min });
 			}();
 
 			return BorderConstantRelativeSize{ xk::Math::HadamardDivision(size.value - baseSize, variableSize) };
@@ -174,7 +175,7 @@ namespace DeluEngine::GUI
 	template<>
 	RelativeSize ConvertSizeRepresentation<RelativeSize, AspectRatioRelativeSize>(const AspectRatioRelativeSize& size, AbsoluteSize parentSize) noexcept
 	{
-		const Vector2 absoluteSize = ConvertSizeRepresentation<AbsoluteSize>(size, parentSize).value;
+		const xk::Math::Aliases::Vector2 absoluteSize = ConvertSizeRepresentation<AbsoluteSize>(size, parentSize).value;
 		return RelativeSize{ xk::Math::HadamardDivision(absoluteSize, parentSize.value) };
 	}
 
@@ -210,7 +211,7 @@ namespace DeluEngine::GUI
 	template<>
 	RelativeSize ConvertSizeRepresentation<RelativeSize, BorderConstantRelativeSize>(const BorderConstantRelativeSize& size, AbsoluteSize parentSize) noexcept
 	{
-		const Vector2 staticSize = ConvertSizeRepresentation<AbsoluteSize>(size, parentSize).value;
+		const xk::Math::Aliases::Vector2 staticSize = ConvertSizeRepresentation<AbsoluteSize>(size, parentSize).value;
 		return RelativeSize{ xk::Math::HadamardDivision(staticSize, parentSize.value) };
 	}
 
@@ -227,23 +228,23 @@ namespace DeluEngine::GUI
 	}
 
 	//Calculates an equivalent position that would not affect the visual position of an element between different pivots
-	export AbsolutePosition ConvertPivotEquivalentAbsolutePosition(Vector2 fromPivot, Vector2 toPivot, AbsolutePosition fromPosition, RelativeSize elementSize, AbsoluteSize parentSize) noexcept
+	export AbsolutePosition ConvertPivotEquivalentAbsolutePosition(xk::Math::Aliases::Vector2 fromPivot, xk::Math::Aliases::Vector2 toPivot, AbsolutePosition fromPosition, RelativeSize elementSize, AbsoluteSize parentSize) noexcept
 	{
-		const Vector2 pivotDiff = toPivot - fromPivot;
-		const Vector2 offset = xk::Math::HadamardProduct(pivotDiff, elementSize.value);
+		const xk::Math::Aliases::Vector2 pivotDiff = toPivot - fromPivot;
+		const xk::Math::Aliases::Vector2 offset = xk::Math::HadamardProduct(pivotDiff, elementSize.value);
 		return AbsolutePosition{ fromPosition.value + ConvertSizeRepresentation<AbsoluteSize>(RelativeSize{ offset }, parentSize).value };
 	}
 
 	//Calculates an equivalent position that would not affect the visual position of an element between different pivots
-	export RelativePosition ConvertPivotEquivalentRelativePosition(Vector2 fromPivot, Vector2 toPivot, RelativePosition fromPosition, RelativeSize elementSize, AbsoluteSize parentSize) noexcept
+	export RelativePosition ConvertPivotEquivalentRelativePosition(xk::Math::Aliases::Vector2 fromPivot, xk::Math::Aliases::Vector2 toPivot, RelativePosition fromPosition, RelativeSize elementSize, AbsoluteSize parentSize) noexcept
 	{
-		const Vector2 pivotDiff = toPivot - fromPivot;
-		const Vector2 offset = xk::Math::HadamardProduct(pivotDiff, elementSize.value);
+		const xk::Math::Aliases::Vector2 pivotDiff = toPivot - fromPivot;
+		const xk::Math::Aliases::Vector2 offset = xk::Math::HadamardProduct(pivotDiff, elementSize.value);
 		return RelativePosition{ fromPosition.value + offset };
 	}
 
 	//Calculates an equivalent position that would not affect the visual position of an element between different pivots
-	export PositionVariant ConvertPivotEquivalentPosition(Vector2 fromPivot, Vector2 toPivot, PositionVariant fromPosition, RelativeSize elementSize, AbsoluteSize parentSize) noexcept
+	export PositionVariant ConvertPivotEquivalentPosition(xk::Math::Aliases::Vector2 fromPivot, xk::Math::Aliases::Vector2 toPivot, PositionVariant fromPosition, RelativeSize elementSize, AbsoluteSize parentSize) noexcept
 	{
 		static_assert(std::same_as<PositionVariant, std::variant<AbsolutePosition, RelativePosition>>, "Position variant changed, function requires changes");
 		if(auto* position = std::get_if<AbsolutePosition>(&fromPosition); position)
@@ -263,7 +264,7 @@ namespace DeluEngine::GUI
 
 		AbsolutePosition Center() const noexcept
 		{
-			return AbsolutePosition{ xk::Math::HadamardDivision(bottomLeft.value + topRight.value, Vector2{ 2, 2 }) };
+			return AbsolutePosition{ xk::Math::HadamardDivision(bottomLeft.value + topRight.value, xk::Math::Aliases::Vector2{ 2, 2 }) };
 		}
 
 		float Width() const noexcept
@@ -333,10 +334,10 @@ namespace DeluEngine::GUI
 
 	public:
 		SDL2pp::unique_ptr<SDL2pp::Texture> internalTexture;
-		Vector2 GetSize() const noexcept { return internalTexture->GetSize(); }
+		xk::Math::Aliases::Vector2 GetSize() const noexcept { return internalTexture->GetSize(); }
 
 		template<std::derived_from<UIElement> Ty, class... ExtraConstructorParams>
-		std::unique_ptr<Ty> NewElement(PositionVariant position, SizeVariant size, Vector2 pivot, UIElement* parent = nullptr, ExtraConstructorParams&&... params) 
+		std::unique_ptr<Ty> NewElement(PositionVariant position, SizeVariant size, xk::Math::Aliases::Vector2 pivot, UIElement* parent = nullptr, ExtraConstructorParams&&... params) 
 		{
 			return std::make_unique<Ty>(*this, position, size, pivot, parent, std::forward<ExtraConstructorParams>(params)...);
 		}
@@ -368,7 +369,7 @@ namespace DeluEngine::GUI
 		std::vector<UIElement*> m_children;
 		PositionVariant m_position;
 		SizeVariant m_size;
-		Vector2 m_pivot;
+		xk::Math::Aliases::Vector2 m_pivot;
 
 	public:
 		std::string debugName;
@@ -381,7 +382,7 @@ namespace DeluEngine::GUI
 
 		}
 
-		UIElement(UIFrame& ownerFrame, PositionVariant position, SizeVariant size, Vector2 pivot, UIElement* parent = nullptr) :
+		UIElement(UIFrame& ownerFrame, PositionVariant position, SizeVariant size, xk::Math::Aliases::Vector2 pivot, UIElement* parent = nullptr) :
 			m_ownerFrame{ &ownerFrame },
 			m_parent{ parent },
 			m_position{ position },
@@ -418,7 +419,7 @@ namespace DeluEngine::GUI
 			return { bottomLeft, AbsolutePosition{ bottomLeft.value + GetFrameSizeAs<AbsoluteSize>().value} };
 		}
 
-		Vector2 GetPivot() const noexcept
+		xk::Math::Aliases::Vector2 GetPivot() const noexcept
 		{
 			return m_pivot;
 		}
@@ -426,8 +427,8 @@ namespace DeluEngine::GUI
 		template<VariantMember<PositionVariant> Ty>
 		Ty GetPivotOffset() const noexcept
 		{
-			const Vector2 size = GetFrameSizeAs<AbsoluteSize>().value;
-			const Vector2 pivotOffset = { GetPivot().X() * -size.X(), GetPivot().Y() * -size.Y() };
+			const xk::Math::Aliases::Vector2 size = GetFrameSizeAs<AbsoluteSize>().value;
+			const xk::Math::Aliases::Vector2 pivotOffset = { GetPivot().X() * -size.X(), GetPivot().Y() * -size.Y() };
 			return ConvertPositionRepresentation<Ty>(AbsolutePosition{ pivotOffset }, AbsoluteSize{ m_ownerFrame->GetSize() });
 		}
 
@@ -436,8 +437,8 @@ namespace DeluEngine::GUI
 		{
 			return std::visit([this](const auto& val) -> Ty
 				{
-					const Vector2 size = GetFrameSizeAs<AbsoluteSize>().value;
-					const Vector2 pivotOffset = { GetPivot().X() * -size.X(), GetPivot().Y() * -size.Y() };
+					const xk::Math::Aliases::Vector2 size = GetFrameSizeAs<AbsoluteSize>().value;
+					const xk::Math::Aliases::Vector2 pivotOffset = { GetPivot().X() * -size.X(), GetPivot().Y() * -size.Y() };
 					return ConvertPositionRepresentation<Ty>(AbsolutePosition{ GetLocalPositionAs<AbsolutePosition>().value + GetParentPivotedFrameAbsolutePosition().value + pivotOffset }, AbsoluteSize{ m_ownerFrame->GetSize() });
 				}, m_position);
 		}
@@ -543,7 +544,7 @@ namespace DeluEngine::GUI
 
 		void SetParent(UIElement* newParent, UIReparentLogic logic = UIReparentLogic::KeepRelativeTransform);
 
-		void SetPivot(Vector2 pivot, PivotChangePolicy policy = PivotChangePolicy::NoPositionChange) noexcept
+		void SetPivot(xk::Math::Aliases::Vector2 pivot, PivotChangePolicy policy = PivotChangePolicy::NoPositionChange) noexcept
 		{
 			switch(policy)
 			{
@@ -589,7 +590,7 @@ namespace DeluEngine::GUI
 
 		}
 
-		Image(UIFrame& ownerFrame, PositionVariant position, SizeVariant size, Vector2 pivot, UIElement* parent = nullptr, SDL2pp::shared_ptr<SDL2pp::Texture> texture = nullptr) :
+		Image(UIFrame& ownerFrame, PositionVariant position, SizeVariant size, xk::Math::Aliases::Vector2 pivot, UIElement* parent = nullptr, SDL2pp::shared_ptr<SDL2pp::Texture> texture = nullptr) :
 			UIElement{ ownerFrame, position, size, pivot, parent },
 			texture{ texture }
 		{
@@ -612,7 +613,7 @@ namespace DeluEngine::GUI
 			debugEnableRaytrace = true;
 		}
 
-		Button(UIFrame& ownerFrame, PositionVariant position, SizeVariant size, Vector2 pivot, UIElement* parent = nullptr, SDL2pp::shared_ptr<SDL2pp::Texture> texture = nullptr) :
+		Button(UIFrame& ownerFrame, PositionVariant position, SizeVariant size, xk::Math::Aliases::Vector2 pivot, UIElement* parent = nullptr, SDL2pp::shared_ptr<SDL2pp::Texture> texture = nullptr) :
 			UIElement{ ownerFrame, position, size, pivot, parent },
 			texture{ texture }
 		{
@@ -640,7 +641,7 @@ namespace DeluEngine::GUI
 		{
 		}
 
-		Text(UIFrame& ownerFrame, PositionVariant position, SizeVariant size, Vector2 pivot, UIElement* parent = nullptr) :
+		Text(UIFrame& ownerFrame, PositionVariant position, SizeVariant size, xk::Math::Aliases::Vector2 pivot, UIElement* parent = nullptr) :
 			UIElement{ ownerFrame, position, size, pivot, parent }
 		{
 		}
@@ -738,5 +739,5 @@ namespace DeluEngine::GUI
 		}
 	};
 
-	export void ProcessEvent(GUIEngine& engine, const SDL2pp::Event& event, Vector2 windowSize);
+	export void ProcessEvent(GUIEngine& engine, const SDL2pp::Event& event, xk::Math::Aliases::Vector2 windowSize);
 }

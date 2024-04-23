@@ -33,9 +33,6 @@
     <ClCompile Include="SortedVector.ixx">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Controller.ixx">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Components\SpriteComponent.ixx">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -52,6 +49,15 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ECS.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Controller.ixx">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ForewardDeclares.ixx">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Components\SpriteComponent.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

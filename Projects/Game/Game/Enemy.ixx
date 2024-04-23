@@ -67,7 +67,7 @@ namespace Delu
 
 		void DebugDraw(DeluEngine::DebugRenderer& renderer) override
 		{			
-			renderer.SetDrawColor({ 255, 0, 0, 1 });
+			renderer.SetDrawColor({ { 255, 0, 0, 1 } });
 			DrawSpline(renderer, spline, 100);
 		}
 	};

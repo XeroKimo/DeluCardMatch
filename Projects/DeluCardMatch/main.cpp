@@ -3,7 +3,7 @@
 #include <chrono>
 #include <box2d/box2d.h>
 #include <span>
-#include <SDL_mixer.h>
+#include <SDL2/SDL_mixer.h>
 #include <Windows.h>
 
 import DeluEngine;
@@ -68,7 +68,7 @@ void DrawElement(DeluEngine::Renderer& renderer, DeluEngine::GUI::UIElement& ele
 void DrawFrame(DeluEngine::Renderer& renderer, DeluEngine::GUI::UIFrame& frame)
 {
 	renderer.backend->SetRenderTarget(frame.internalTexture.get());
-	renderer.backend->SetDrawColor(SDL2pp::Color{ 0, 0, 0, 0 });
+	renderer.backend->SetDrawColor(SDL2pp::Color{ { 0, 0, 0, 0 } });
 	renderer.backend->Clear();
 
 	std::vector<DeluEngine::GUI::UIElement*> rootElements = frame.GetRootElements();

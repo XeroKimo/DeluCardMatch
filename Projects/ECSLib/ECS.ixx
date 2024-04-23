@@ -1030,7 +1030,7 @@ namespace ECS
 
 			if (m_phase == InitPhase::LoadObjectsToMemory)
 			{
-				auto it = std::find_if(m_deferredEvents.begin(), m_deferredEvents.end(), [gameObject](auto& lifetime) { return lifetime->gameObject == gameObject; });
+				auto it = std::find_if(m_deferredEvents.begin(), m_deferredEvents.end(), [&gameObject](const std::unique_ptr<DeferredLifetimeEvent>& lifetime) { return lifetime->gameObject == gameObject; });
 				{
 					auto temp = std::move(*it);
 					std::iter_swap(it, m_deferredEvents.end() - 1);

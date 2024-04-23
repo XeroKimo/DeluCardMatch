@@ -223,17 +223,18 @@ namespace DeluEngine
 		return { key, keyState };
 	}
 
+	constexpr std::array<Key, 256> allKeys = []()
+		{
+			std::array<Key, 256> keys;
+			std::generate(keys.begin(), keys.end(), [i = 0]() mutable { return static_cast<Key>(i++); });
+			return keys;
+		}();
+
 	export class Controller
 	{
 	private:
 		std::bitset<256> m_previousState;
 		std::bitset<256> m_currentState;
-		const std::array<Key, 256> allKeys = []() 
-			{
-				std::array<Key, 256> keys;
-				std::generate(keys.begin(), keys.end(), [i = 0]() mutable { return static_cast<Key>(i++); });
-				return keys;
-			}();
 
 	public:
 		void SetState(Key key)

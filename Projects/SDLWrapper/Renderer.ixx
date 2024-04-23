@@ -14,7 +14,7 @@ import :Types;
 
 namespace SDL2pp
 {
-	using namespace xk::Math::Aliases;
+	//using namespace xk::Math::Aliases;
 
 	template<>
 	struct SDL2Destructor<Renderer>
@@ -38,7 +38,7 @@ namespace SDL2pp
 	{
 		PixelFormat format;
 		TextureAccess access;
-		iVector2 size;
+		xk::Math::Aliases::iVector2 size;
 	};
 
 	template<class DerivedSelf>
@@ -65,7 +65,7 @@ namespace SDL2pp
 			return QueryTexture().format;
 		}
 
-		iVector2 GetSize() const
+		xk::Math::Aliases::iVector2 GetSize() const
 		{
 			return QueryTexture().size;
 		}
@@ -100,61 +100,61 @@ namespace SDL2pp
 
 	public:
 
-		/* Functions to implement
-		* SDL_CreateRenderer
-			SDL_CreateSoftwareRenderer
-			SDL_CreateWindowAndRenderer
-			SDL_DestroyRenderer
-			SDL_GetRenderDrawBlendMode
-			SDL_GetRenderDrawColor
-			SDL_GetRendererInfo
-			SDL_GetRendererOutputSize
-			SDL_GetRenderTarget
-			SDL_RenderCopyEx
-			SDL_RenderCopyExF
-			SDL_RenderCopyF
-			SDL_RenderDrawLine
-			SDL_RenderDrawLineF
-			SDL_RenderDrawLines
-			SDL_RenderDrawLinesF
-			SDL_RenderDrawPoint
-			SDL_RenderDrawPointF
-			SDL_RenderDrawPoints
-			SDL_RenderDrawPointsF
-			SDL_RenderDrawRect
-			SDL_RenderDrawRectF
-			SDL_RenderDrawRects
-			SDL_RenderDrawRectsF
-			SDL_RenderFillRect
-			SDL_RenderFillRectF
-			SDL_RenderFillRects
-			SDL_RenderFillRectsF
-			SDL_RenderFlush
-			SDL_RenderGeometry
-			SDL_RenderGeometryRaw
-			SDL_RenderGetClipRect
-			SDL_RenderGetD3D11Device
-			SDL_RenderGetD3D12Device
-			SDL_RenderGetD3D9Device
-			SDL_RenderGetIntegerScale
-			SDL_RenderGetLogicalSize
-			SDL_RenderGetMetalCommandEncoder
-			SDL_RenderGetMetalLayer
-			SDL_RenderGetScale
-			SDL_RenderGetViewport
-			SDL_RenderGetWindow
-			SDL_RenderIsClipEnabled
-			SDL_RenderLogicalToWindow
-			SDL_RenderReadPixels
-			SDL_RenderSetClipRect
-			SDL_RenderSetIntegerScale
-			SDL_RenderSetLogicalSize
-			SDL_RenderSetScale
-			SDL_RenderSetViewport
-			SDL_RenderSetVSync
-			SDL_RenderTargetSupported
-			SDL_RenderWindowToLogical
-		*/
+	//	/* Functions to implement
+	//	* SDL_CreateRenderer
+	//		SDL_CreateSoftwareRenderer
+	//		SDL_CreateWindowAndRenderer
+	//		SDL_DestroyRenderer
+	//		SDL_GetRenderDrawBlendMode
+	//		SDL_GetRenderDrawColor
+	//		SDL_GetRendererInfo
+	//		SDL_GetRendererOutputSize
+	//		SDL_GetRenderTarget
+	//		SDL_RenderCopyEx
+	//		SDL_RenderCopyExF
+	//		SDL_RenderCopyF
+	//		SDL_RenderDrawLine
+	//		SDL_RenderDrawLineF
+	//		SDL_RenderDrawLines
+	//		SDL_RenderDrawLinesF
+	//		SDL_RenderDrawPoint
+	//		SDL_RenderDrawPointF
+	//		SDL_RenderDrawPoints
+	//		SDL_RenderDrawPointsF
+	//		SDL_RenderDrawRect
+	//		SDL_RenderDrawRectF
+	//		SDL_RenderDrawRects
+	//		SDL_RenderDrawRectsF
+	//		SDL_RenderFillRect
+	//		SDL_RenderFillRectF
+	//		SDL_RenderFillRects
+	//		SDL_RenderFillRectsF
+	//		SDL_RenderFlush
+	//		SDL_RenderGeometry
+	//		SDL_RenderGeometryRaw
+	//		SDL_RenderGetClipRect
+	//		SDL_RenderGetD3D11Device
+	//		SDL_RenderGetD3D12Device
+	//		SDL_RenderGetD3D9Device
+	//		SDL_RenderGetIntegerScale
+	//		SDL_RenderGetLogicalSize
+	//		SDL_RenderGetMetalCommandEncoder
+	//		SDL_RenderGetMetalLayer
+	//		SDL_RenderGetScale
+	//		SDL_RenderGetViewport
+	//		SDL_RenderGetWindow
+	//		SDL_RenderIsClipEnabled
+	//		SDL_RenderLogicalToWindow
+	//		SDL_RenderReadPixels
+	//		SDL_RenderSetClipRect
+	//		SDL_RenderSetIntegerScale
+	//		SDL_RenderSetLogicalSize
+	//		SDL_RenderSetScale
+	//		SDL_RenderSetViewport
+	//		SDL_RenderSetVSync
+	//		SDL_RenderTargetSupported
+	//		SDL_RenderWindowToLogical
+	//	*/
 
 		void Clear()
 		{
@@ -215,14 +215,14 @@ namespace SDL2pp
 			return unique_ptr<Texture>{ ThrowIfNullptr(SDL_CreateTextureFromSurface(&Get(), surface.get()), "Failed to create texture")};
 		}
 
-		void DrawLine(Vector2 p1, Vector2 p2)
+		void DrawLine(xk::Math::Aliases::Vector2 p1, xk::Math::Aliases::Vector2 p2)
 		{
 			SDL_RenderDrawLineF(&Get(), p1.X(), p1.Y(), p2.X(), p2.Y());
 		}
 
-		iVector2 GetOutputSize() const
+		xk::Math::Aliases::iVector2 GetOutputSize() const
 		{
-			iVector2 size;
+			xk::Math::Aliases::iVector2 size;
 			ThrowIfFailed(SDL_GetRendererOutputSize(&Get(), &size.X(), &size.Y()));
 			return size;
 		}
