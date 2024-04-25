@@ -1,6 +1,7 @@
 module;
 
 #include <gsl/pointers>
+#include <vector>
 
 module DeluEngine:ECS;
 import ECS;

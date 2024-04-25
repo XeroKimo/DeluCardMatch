@@ -12,7 +12,6 @@ import xk.Math.Matrix;
 
 namespace xk::Math
 {
-	using namespace Aliases;
 	export struct CatmullSplineTraits
 	{
 		static constexpr auto characteristicMatrix = Matrix<double, 4, 4>
@@ -73,8 +72,6 @@ namespace xk::Math
 			return Magnitude(points[1] - points[0]);
 		}
 	};
-
-	using namespace Aliases;
 
 	template<class Ty>
 	Ty Lerp(const Ty& a, const Ty& b, float t)

@@ -1,4 +1,3 @@
-
 module DeluEngine:SpriteComponent;
 import :Engine;
 

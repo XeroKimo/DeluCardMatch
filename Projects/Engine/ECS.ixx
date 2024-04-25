@@ -51,8 +51,12 @@ namespace DeluEngine
 
 	export class SceneSystem : public ECS::SceneSystem
 	{
-	public:
-		using ECS::SceneSystem::SceneSystem;
+	public:		
+		SceneSystem(const gsl::not_null<ECS::Scene*> scene) :
+			ECS::SceneSystem{ scene }
+		{
+
+		}
 
 	public:
 		Scene& GetScene() const noexcept;

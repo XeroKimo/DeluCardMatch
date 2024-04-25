@@ -153,6 +153,9 @@
     <ProjectReference Include="..\Engine\Engine.vcxproj">
       <Project>{837c9462-bd7d-476a-a001-c76f8327dd92}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\SDLWrapper\SDLWrapper.vcxproj">
+      <Project>{b8b03f35-4ef4-4964-8993-b1801007c8b3}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\xkMath\xkMath.vcxproj">
       <Project>{68f6959a-8c53-4752-9cde-f5fcaea62413}</Project>
     </ProjectReference>

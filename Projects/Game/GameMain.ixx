@@ -25,9 +25,6 @@ import SDL2pp;
 //import Enemy;
 //import LevelStrip.Event.EnemySpawn;
 //import DeluGame.ControllerContextConstants;
-using namespace xk::Math::Aliases;
-
-using namespace DeluEngine::GUI;
 
 std::array<Mix_Chunk*, 3> correctEffects;
 std::array<Mix_Chunk*, 4> missEffects;
@@ -41,13 +38,13 @@ export struct Card
 
 	Card(DeluEngine::GUI::UIFrame& frame, DeluEngine::GUI::SizeVariant size, SDL2pp::shared_ptr<SDL2pp::Texture> backTexture, SDL2pp::shared_ptr<SDL2pp::Texture> frontTexture, SDL2pp::shared_ptr<SDL2pp::Texture> cardTypeTexture)
 	{
-		backCardButton = frame.NewElement<DeluEngine::GUI::Button>(RelativePosition{}, size, Vector2{ 0.5f, 0.5f }, nullptr, backTexture);
-		frontCard = frame.NewElement<DeluEngine::GUI::Image>(RelativePosition{}, size, Vector2{ 0.5f, 0.5f }, nullptr, frontTexture);
-		cardTypeIcon = frame.NewElement<DeluEngine::GUI::Image>(RelativePosition{ { 0.5f, 0.5f} }, BorderConstantRelativeSize{ .value = { 0.8f, 0.8f } }, Vector2{ 0.5f, 0.5f }, frontCard.get(), cardTypeTexture);
+		backCardButton = frame.NewElement<DeluEngine::GUI::Button>(DeluEngine::GUI::RelativePosition{}, size, xk::Math::Aliases::Vector2{ 0.5f, 0.5f }, nullptr, backTexture);
+		frontCard = frame.NewElement<DeluEngine::GUI::Image>(DeluEngine::GUI::RelativePosition{}, size, xk::Math::Aliases::Vector2{ 0.5f, 0.5f }, nullptr, frontTexture);
+		cardTypeIcon = frame.NewElement<DeluEngine::GUI::Image>(DeluEngine::GUI::RelativePosition{ { 0.5f, 0.5f} }, DeluEngine::GUI::BorderConstantRelativeSize{ .value = { 0.8f, 0.8f } }, xk::Math::Aliases::Vector2{ 0.5f, 0.5f }, frontCard.get(), cardTypeTexture);
 		FlipDown();
 	}
 
-	void SetParent(UIElement* parent)
+	void SetParent(DeluEngine::GUI::UIElement* parent)
 	{
 		backCardButton->SetParent(parent);
 		frontCard->SetParent(parent);
@@ -71,7 +68,7 @@ export struct Card
 		cardTypeIcon->render = false;
 	}
 
-	void SetLocalPosition(PositionVariant position)
+	void SetLocalPosition(DeluEngine::GUI::PositionVariant position)
 	{
 		backCardButton->SetLocalPosition(position);
 		frontCard->SetLocalPosition(position);
@@ -84,11 +81,11 @@ export struct Card
 
 export struct CardMatchSceneLoader
 {
-	iVector2 cardCount;
+	xk::Math::Aliases::iVector2 cardCount;
 	void operator()(ECS::Scene& s) const;
 };
 
-export CardMatchSceneLoader CardMatchScene(iVector2 cardCount);
+export CardMatchSceneLoader CardMatchScene(xk::Math::Aliases::iVector2 cardCount);
 
 export struct VictoryScreen
 {
@@ -100,10 +97,10 @@ export struct VictoryScreen
 		SDL_Surface* quitButtonPNG = IMG_Load("Quit_Button.png");
 		SDL_Surface* retryButtonPNG = IMG_Load("PlayAgain_Button.png");
 
-		quitButton = frame.NewElement<DeluEngine::GUI::Button>(RelativePosition{ { 0.40f, 0.33f } }, DeluEngine::GUI::AbsoluteSize{ { quitButtonPNG->w, quitButtonPNG->h } }, Vector2{ 0.5f, 0.0f }, nullptr, engine.renderer.backend->CreateTexture(quitButtonPNG));
-		quitButton->ConvertUnderlyingSizeRepresentation<AspectRatioRelativeSize>();
-		retryButton = frame.NewElement<DeluEngine::GUI::Button>(RelativePosition{ { 0.60f, 0.33f } }, DeluEngine::GUI::AbsoluteSize{ { retryButtonPNG->w, retryButtonPNG->h } }, Vector2{ 0.5f, 0.0f }, nullptr, engine.renderer.backend->CreateTexture(retryButtonPNG));
-		retryButton->ConvertUnderlyingSizeRepresentation<AspectRatioRelativeSize>();
+		quitButton = frame.NewElement<DeluEngine::GUI::Button>(DeluEngine::GUI::RelativePosition{ { 0.40f, 0.33f } }, DeluEngine::GUI::AbsoluteSize{ { quitButtonPNG->w, quitButtonPNG->h } }, xk::Math::Aliases::Vector2{ 0.5f, 0.0f }, nullptr, engine.renderer.backend->CreateTexture(quitButtonPNG));
+		quitButton->ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::AspectRatioRelativeSize>();
+		retryButton = frame.NewElement<DeluEngine::GUI::Button>(DeluEngine::GUI::RelativePosition{ { 0.60f, 0.33f } }, DeluEngine::GUI::AbsoluteSize{ { retryButtonPNG->w, retryButtonPNG->h } }, xk::Math::Aliases::Vector2{ 0.5f, 0.0f }, nullptr, engine.renderer.backend->CreateTexture(retryButtonPNG));
+		retryButton->ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::AspectRatioRelativeSize>();
 
 		retryButton->onClicked = [&engine]
 			{
@@ -129,13 +126,18 @@ export struct PauseScreen
 	DeluEngine::Engine* e;
 	PauseScreen(DeluEngine::Engine& engine, DeluEngine::GUI::UIFrame& frame)
 	{
+		
+
 		e = &engine;
-		auto blankScreenTexture = engine.renderer.backend->CreateTexture(
+		SDL2pp::view_ptr<SDL2pp::Renderer> rendererBackend = engine.renderer.backend.get();
+		SDL2pp::unique_ptr<SDL2pp::Renderer> test;
+
+		auto blankScreenTexture = rendererBackend->CreateTexture(
 			SDL_PIXELFORMAT_RGBA32,
 			SDL2pp::TextureAccess(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET),
 			64, 64);
 
-		blankScreen = frame.NewElement<Image>({}, RelativeSize{ { 1.f, 1.f } }, {}, nullptr, std::move(blankScreenTexture));
+		blankScreen = frame.NewElement<DeluEngine::GUI::Image>({}, DeluEngine::GUI::RelativeSize{ { 1.f, 1.f } }, {}, nullptr, std::move(blankScreenTexture));
 
 		engine.controllerContext.PushContext("Pause");
 
@@ -143,12 +145,12 @@ export struct PauseScreen
 		SDL_Surface* retryButtonPNG = IMG_Load("PlayAgain_Button.png");
 		SDL_Surface* resumeButtonPNG = IMG_Load("Resume_Button.png");
 
-		quitButton = frame.NewElement<DeluEngine::GUI::Button>(RelativePosition{ { 0.3f, 0.33f } }, DeluEngine::GUI::AbsoluteSize{ { quitButtonPNG->w, quitButtonPNG->h } }, Vector2{ 0.5f, 0.0f }, nullptr, engine.renderer.backend->CreateTexture(quitButtonPNG));
-		quitButton->ConvertUnderlyingSizeRepresentation<AspectRatioRelativeSize>();
-		retryButton = frame.NewElement<DeluEngine::GUI::Button>(RelativePosition{ { 0.5f, 0.33f } }, DeluEngine::GUI::AbsoluteSize{ { retryButtonPNG->w, retryButtonPNG->h } }, Vector2{ 0.5f, 0.0f }, nullptr, engine.renderer.backend->CreateTexture(retryButtonPNG));
-		retryButton->ConvertUnderlyingSizeRepresentation<AspectRatioRelativeSize>();
-		resumeButton = frame.NewElement<DeluEngine::GUI::Button>(RelativePosition{ { 0.7f, 0.33f } }, DeluEngine::GUI::AbsoluteSize{ { resumeButtonPNG->w, resumeButtonPNG->h } }, Vector2{ 0.5f, 0.0f }, nullptr, engine.renderer.backend->CreateTexture(resumeButtonPNG));
-		resumeButton->ConvertUnderlyingSizeRepresentation<AspectRatioRelativeSize>();
+		quitButton = frame.NewElement<DeluEngine::GUI::Button>(DeluEngine::GUI::RelativePosition{ { 0.3f, 0.33f } }, DeluEngine::GUI::AbsoluteSize{ { quitButtonPNG->w, quitButtonPNG->h } }, xk::Math::Aliases::Vector2{ 0.5f, 0.0f }, nullptr, engine.renderer.backend->CreateTexture(quitButtonPNG));
+		quitButton->ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::AspectRatioRelativeSize>();
+		retryButton = frame.NewElement<DeluEngine::GUI::Button>(DeluEngine::GUI::RelativePosition{ { 0.5f, 0.33f } }, DeluEngine::GUI::AbsoluteSize{ { retryButtonPNG->w, retryButtonPNG->h } }, xk::Math::Aliases::Vector2{ 0.5f, 0.0f }, nullptr, engine.renderer.backend->CreateTexture(retryButtonPNG));
+		retryButton->ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::AspectRatioRelativeSize>();
+		resumeButton = frame.NewElement<DeluEngine::GUI::Button>(DeluEngine::GUI::RelativePosition{ { 0.7f, 0.33f } }, DeluEngine::GUI::AbsoluteSize{ { resumeButtonPNG->w, resumeButtonPNG->h } }, xk::Math::Aliases::Vector2{ 0.5f, 0.0f }, nullptr, engine.renderer.backend->CreateTexture(resumeButtonPNG));
+		resumeButton->ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::AspectRatioRelativeSize>();
 
 
 		retryButton->onClicked = [&]
@@ -177,8 +179,8 @@ export struct CardGrid : public DeluEngine::SceneSystem
 {
 	std::vector<std::unique_ptr<Card>> cards;
 	std::unique_ptr<DeluEngine::GUI::UIElement> gridAligningParent;
-	std::unique_ptr<Text> gameTimeText;
-	std::unique_ptr<Text> moveCountText;
+	std::unique_ptr<DeluEngine::GUI::Text> gameTimeText;
+	std::unique_ptr<DeluEngine::GUI::Text> moveCountText;
 	std::unique_ptr<VictoryScreen> victoryScreen;
 	std::unique_ptr<PauseScreen> pauseScreen;
 
@@ -190,7 +192,7 @@ export struct CardGrid : public DeluEngine::SceneSystem
 	bool pendingClosePauseScreen = false;
 
 public:
-	CardGrid(const gsl::not_null<ECS::Scene*> scene, DeluEngine::GUI::UIFrame& frame, iVector2 gridSize, std::span<SDL2pp::shared_ptr<SDL2pp::Texture>> textures, SDL2pp::shared_ptr<SDL2pp::Texture> cardBack, SDL2pp::shared_ptr<SDL2pp::Texture> cardFront) :
+	CardGrid(const gsl::not_null<ECS::Scene*> scene, DeluEngine::GUI::UIFrame& frame, xk::Math::Aliases::iVector2 gridSize, std::span<SDL2pp::shared_ptr<SDL2pp::Texture>> textures, SDL2pp::shared_ptr<SDL2pp::Texture> cardBack, SDL2pp::shared_ptr<SDL2pp::Texture> cardFront) :
 		SceneSystem{ scene }
 	{
 		owningFrame = &frame;
@@ -202,8 +204,8 @@ public:
 
 		TTF_Font* arialFont = TTF_OpenFont("arial.ttf", 20);
 
-		moveCountText = frame.NewElement<Text>(RelativePosition{ {0.05f, 0.9f} }, RelativeSize{ { 0.15f, 0.1f } }, { 0, 1 }, nullptr);
-		gameTimeText = frame.NewElement<Text>(RelativePosition{ {0.05f, 0.95f} }, RelativeSize{ { 0.15f, 0.1f } }, { 0, 1 }, nullptr);
+		moveCountText = frame.NewElement<DeluEngine::GUI::Text>(DeluEngine::GUI::RelativePosition{ {0.05f, 0.9f} }, DeluEngine::GUI::RelativeSize{ { 0.15f, 0.1f } }, { 0, 1 }, nullptr);
+		gameTimeText = frame.NewElement<DeluEngine::GUI::Text>(DeluEngine::GUI::RelativePosition{ {0.05f, 0.95f} }, DeluEngine::GUI::RelativeSize{ { 0.15f, 0.1f } }, { 0, 1 }, nullptr);
 
 		moveCountText->SetText(std::format("Moves: {}", moveCount));
 		moveCountText->SetFont(arialFont);
@@ -234,15 +236,15 @@ public:
 					};
 			};
 		
-		gridAligningParent = frame.NewElement<UIElement>(RelativePosition{ { 0.5f, 0.5f } }, AspectRatioRelativeSize{ .ratio = -1, .value = 0.9f }, { 0.5f, 0.5f }, nullptr);
+		gridAligningParent = frame.NewElement<DeluEngine::GUI::UIElement>(DeluEngine::GUI::RelativePosition{ { 0.5f, 0.5f } }, DeluEngine::GUI::AspectRatioRelativeSize{ .ratio = -1, .value = 0.9f }, { 0.5f, 0.5f }, nullptr);
 		{
 			size_t totalCards = gridSize.X() * gridSize.Y();
 			for(size_t i = 0, cardTextureCounter = 0; i < totalCards; i += 2, cardTextureCounter++)
 			{
-				cards.push_back(std::make_unique<Card>(frame, RelativeSize{ { 1.f / gridSize.X(), 1.f / gridSize.Y() } }, cardBack, cardFront, textures[cardTextureCounter % textures.size()]));
+				cards.push_back(std::make_unique<Card>(frame, DeluEngine::GUI::RelativeSize{ { 1.f / gridSize.X(), 1.f / gridSize.Y() } }, cardBack, cardFront, textures[cardTextureCounter % textures.size()]));
 				cards.back()->SetParent(gridAligningParent.get());
 				cards.back()->OnClicked() = makeCardsOnClicked(cards.back().get());
-				cards.push_back(std::make_unique<Card>(frame, RelativeSize{ { 1.f / gridSize.X(), 1.f / gridSize.Y() } }, cardBack, cardFront, textures[cardTextureCounter % textures.size()]));
+				cards.push_back(std::make_unique<Card>(frame, DeluEngine::GUI::RelativeSize{ { 1.f / gridSize.X(), 1.f / gridSize.Y() } }, cardBack, cardFront, textures[cardTextureCounter % textures.size()]));
 				cards.back()->SetParent(gridAligningParent.get());
 				cards.back()->OnClicked() = makeCardsOnClicked(cards.back().get());
 			}
@@ -257,8 +259,8 @@ public:
 		{
 			for(size_t x = 0; x < gridSize.X(); x++)
 			{
-				auto cardSize = cards[y * gridSize.X() + x]->frontCard->GetLocalSizeAs<RelativeSize>();
-				cards[y * gridSize.X() + x]->SetLocalPosition(ConvertPivotEquivalentRelativePosition({ 0, 0 }, { 0.5f, 0.5f }, RelativePosition{ { static_cast<float>(x) / gridSize.X(), static_cast<float>(y) / gridSize.Y() } }, cardSize, gridAligningParent->GetFrameSizeAs<AbsoluteSize>()));
+				auto cardSize = cards[y * gridSize.X() + x]->frontCard->GetLocalSizeAs<DeluEngine::GUI::RelativeSize>();
+				cards[y * gridSize.X() + x]->SetLocalPosition(DeluEngine::GUI::ConvertPivotEquivalentRelativePosition({ 0, 0 }, { 0.5f, 0.5f }, DeluEngine::GUI::RelativePosition{ { static_cast<float>(x) / gridSize.X(), static_cast<float>(y) / gridSize.Y() } }, cardSize, gridAligningParent->GetFrameSizeAs<DeluEngine::GUI::AbsoluteSize>()));
 			}
 		}
 	}
@@ -298,10 +300,10 @@ public:
 		if(!victoryScreen && cards.size() == 0)
 		{
 			victoryScreen = std::make_unique<VictoryScreen>(*GetScene().GetExternalSystemAs<gsl::not_null<DeluEngine::Engine*>>(), *owningFrame);
-			gameTimeText->SetFramePosition(RelativePosition{ {0.5f, 0.8f} });
+			gameTimeText->SetFramePosition(DeluEngine::GUI::RelativePosition{ {0.5f, 0.8f} });
 			gameTimeText->SetPivot({0.5f, 0.5f});
 
-			moveCountText->SetFramePosition(RelativePosition{ {0.5f, 0.75f} });
+			moveCountText->SetFramePosition(DeluEngine::GUI::RelativePosition{ {0.5f, 0.75f} });
 			moveCountText->SetPivot({0.5f, 0.5f});
 		}
 	}
@@ -410,7 +412,7 @@ void CardMatchSceneLoader::operator()(ECS::Scene& s) const
 	CardGrid& grid = scene.CreateSystem<CardGrid>(frame, cardCount, cardTextures, cardBackTexture, cardFrontTexture);
 }
 
-export CardMatchSceneLoader CardMatchScene(iVector2 cardCount)
+export CardMatchSceneLoader CardMatchScene(xk::Math::Aliases::iVector2 cardCount)
 {
 	return CardMatchSceneLoader(cardCount);
 }
