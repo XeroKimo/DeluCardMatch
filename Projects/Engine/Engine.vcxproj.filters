@@ -54,7 +54,7 @@
     <ClCompile Include="Controller.ixx">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ForewardDeclares.ixx">
+    <ClCompile Include="ForwardDeclares.ixx">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Components\SpriteComponent.cpp">

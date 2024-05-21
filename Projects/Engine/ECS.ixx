@@ -10,7 +10,7 @@ module;
 
 export module DeluEngine:ECS;
 export import ECS;
-import :ForewardDeclares;
+import :ForwardDeclares;
 import :EngineAware;
 import :GUI;
 import SDL2pp;

@@ -13,7 +13,7 @@ import :Renderer;
 import :ECS;
 import :Controller;
 import :Physics;
-import :ForewardDeclares;
+import :ForwardDeclares;
 import :GUI;
 import SDL2pp;
 import xk.Math.Matrix;

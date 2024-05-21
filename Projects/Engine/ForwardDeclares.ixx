@@ -1,4 +1,4 @@
-export module DeluEngine:ForewardDeclares;
+export module DeluEngine:ForwardDeclares;
 
 namespace DeluEngine
 {

@@ -4,6 +4,7 @@ module;
 #include <vector>
 #include <memory>
 #include <chrono>
+//#include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_image.h>
 #include <iostream>
@@ -29,7 +30,7 @@ import SDL2pp;
 std::array<Mix_Chunk*, 3> correctEffects;
 std::array<Mix_Chunk*, 4> missEffects;
 Mix_Music* bgm;
-
+using SDL2pp::SDL2Interface;
 export struct Card
 {
 	std::unique_ptr<DeluEngine::GUI::Button> backCardButton;
@@ -96,7 +97,6 @@ export struct VictoryScreen
 	{
 		SDL_Surface* quitButtonPNG = IMG_Load("Quit_Button.png");
 		SDL_Surface* retryButtonPNG = IMG_Load("PlayAgain_Button.png");
-
 		quitButton = frame.NewElement<DeluEngine::GUI::Button>(DeluEngine::GUI::RelativePosition{ { 0.40f, 0.33f } }, DeluEngine::GUI::AbsoluteSize{ { quitButtonPNG->w, quitButtonPNG->h } }, xk::Math::Aliases::Vector2{ 0.5f, 0.0f }, nullptr, engine.renderer.backend->CreateTexture(quitButtonPNG));
 		quitButton->ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::AspectRatioRelativeSize>();
 		retryButton = frame.NewElement<DeluEngine::GUI::Button>(DeluEngine::GUI::RelativePosition{ { 0.60f, 0.33f } }, DeluEngine::GUI::AbsoluteSize{ { retryButtonPNG->w, retryButtonPNG->h } }, xk::Math::Aliases::Vector2{ 0.5f, 0.0f }, nullptr, engine.renderer.backend->CreateTexture(retryButtonPNG));

@@ -3,7 +3,7 @@ module;
 #include <memory>
 
 export module DeluEngine:SpriteComponent;
-import :ForewardDeclares;
+import :ForwardDeclares;
 import :ECS;
 //export import :ECS;
 import :Renderer;

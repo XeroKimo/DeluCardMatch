@@ -11,10 +11,16 @@ export module SDL2pp:Impl;
 
 namespace SDL2pp
 {
-	template<class Ty>
-	struct SDL2Destructor;
+	export template<class Ty>
+	struct SDL2Destructor
+	{
 
-	template<class Ty, class DerivedSelf>
+	};
+
+	//Temporary, do not actually specialize outside of this library
+	//If intellisense is giving issues when trying to use SDL2 interfaces
+	//bring this interface into scope to fix the intellise with using SDL2pp::SDL2Interface
+	export template<class Ty, class DerivedSelf>
 	struct SDL2Interface
 	{
 
