@@ -65,7 +65,6 @@ namespace DeluEngine
 	export class SceneGUISystem : public SceneSystem
 	{
 	private:
-		std::vector<std::unique_ptr<GUI::UIFrame>> m_systemOwnedFrames;
 		std::vector<std::unique_ptr<GUI::UIElement>> m_systemOwnedElements;
 
 	public:
@@ -78,8 +77,6 @@ namespace DeluEngine
 		~SceneGUISystem();
 
 	public:
-		GUI::UIFrame& NewPersistentFrame();
-
 		void AddPersistentElement(std::unique_ptr<GUI::UIElement> element)
 		{
 			m_systemOwnedElements.push_back(std::move(element));

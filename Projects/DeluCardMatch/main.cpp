@@ -43,7 +43,7 @@ SDL2pp::FRect GetRect(const DeluEngine::GUI::UIElement& element)
 	SDL2pp::FRect rect;
 	const Vector2 size = element.GetFrameSizeAs<DeluEngine::GUI::AbsoluteSize>().value;
 	const Vector2 pivotOffsetFlip = { 0, size.Y() };
-	const Vector2 sdl2YFlip = { 0, element.GetFrame().GetSize().Y()  };
+	const Vector2 sdl2YFlip = { 0, element.GetRendererSize().value.Y()  };
 	const Vector2 position = xk::Math::HadamardProduct(baseRect.bottomLeft.value + pivotOffsetFlip, Vector2{ 1, -1 }) + sdl2YFlip;
 
 	rect.x = position.X();
@@ -65,13 +65,13 @@ void DrawElement(DeluEngine::Renderer& renderer, DeluEngine::GUI::UIElement& ele
 	}
 }
 
-void DrawFrame(DeluEngine::Renderer& renderer, DeluEngine::GUI::UIFrame& frame)
+void DrawGUI(DeluEngine::Renderer& renderer, DeluEngine::GUI::GUIEngine& frame)
 {
 	renderer.backend->SetRenderTarget(frame.internalTexture.get());
 	renderer.backend->SetDrawColor(SDL2pp::Color{ { 0, 0, 0, 0 } });
 	renderer.backend->Clear();
 
-	std::vector<DeluEngine::GUI::UIElement*> rootElements = frame.GetRootElements();
+	std::vector<DeluEngine::GUI::UIElement*> rootElements = frame.rootElements;
 	for(DeluEngine::GUI::UIElement* element : rootElements)
 	{
 		DrawElement(renderer, *element);
@@ -104,6 +104,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	engine.physicsWorld.SetContactListener(&engine.box2DCallbacks);
 	engine.physicsWorld.SetDebugDraw(&engine.box2DCallbacks);
 	DeluEngine::Input::defaultController = &engine.controller;
+
+	engine.guiEngine.internalTexture = engine.renderer.backend->CreateTexture(
+		SDL_PIXELFORMAT_RGBA32,
+		SDL2pp::TextureAccess(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET),
+		1600, 900);
+	engine.guiEngine.internalTexture->SetBlendMode(SDL_BLENDMODE_BLEND);
+
 	engine.CreateScene(GameMain(engine));
 	engine.renderer.debugCallbacks.push_back([&engine](DeluEngine::DebugRenderer& renderer)
 		{
@@ -177,10 +184,7 @@ void Render(DeluEngine::Engine& engine)
 	engine.renderer.backend->Clear();
 	DrawSprites(engine.renderer, engine.renderer.GetSprites());
 
-	for(auto frame : engine.guiEngine.frames)
-	{
-		DrawFrame(engine.renderer, *frame);
-	}
+	DrawGUI(engine.renderer, engine.guiEngine);
 
 	for(DeluEngine::DebugRenderer debugRenderer{ engine.renderer.GetDebugRenderer() }; auto& callback : engine.renderer.debugCallbacks)
 	{ 

@@ -36,22 +36,22 @@ namespace DeluEngine::GUI
 				{
 					if(!newParent)
 					{
-						m_ownerFrame->m_rootElements.push_back(this);
+						m_engine->rootElements.push_back(this);
 					}
 					else if(!oldParent && newParent)
 					{
-						std::erase(m_ownerFrame->m_rootElements, this);
+						std::erase(m_engine->rootElements, this);
 					}
 				}
 				catch(...)
 				{
 					if(!newParent)
 					{
-						std::erase(m_ownerFrame->m_rootElements, this);
+						std::erase(m_engine->rootElements, this);
 					}
 					else if(!oldParent && newParent)
 					{
-						m_ownerFrame->m_rootElements.push_back(this);
+						m_engine->rootElements.push_back(this);
 					}
 				}
 			};
@@ -108,7 +108,7 @@ namespace DeluEngine::GUI
 		SDL2pp::FRect rect;
 		const xk::Math::Aliases::Vector2 size = element.GetFrameSizeAs<DeluEngine::GUI::AbsoluteSize>().value;
 		const xk::Math::Aliases::Vector2 pivotOffsetFlip = { 0, size.Y() };
-		const xk::Math::Aliases::Vector2 sdl2YFlip = { 0, element.GetFrame().GetSize().Y() };
+		const xk::Math::Aliases::Vector2 sdl2YFlip = { 0, element.GetRendererSize().value.Y() };
 		const xk::Math::Aliases::Vector2 position = xk::Math::HadamardProduct(baseRect.bottomLeft.value + pivotOffsetFlip,  xk::Math::Aliases::Vector2{ 1, -1 }) + sdl2YFlip;
 
 		rect.x = position.X();

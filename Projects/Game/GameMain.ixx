@@ -37,7 +37,7 @@ export struct Card
 	std::unique_ptr<DeluEngine::GUI::Image> frontCard;
 	std::unique_ptr<DeluEngine::GUI::Image> cardTypeIcon;
 
-	Card(DeluEngine::GUI::UIFrame& frame, DeluEngine::GUI::SizeVariant size, SDL2pp::shared_ptr<SDL2pp::Texture> backTexture, SDL2pp::shared_ptr<SDL2pp::Texture> frontTexture, SDL2pp::shared_ptr<SDL2pp::Texture> cardTypeTexture)
+	Card(DeluEngine::GUI::GUIEngine& frame, DeluEngine::GUI::SizeVariant size, SDL2pp::shared_ptr<SDL2pp::Texture> backTexture, SDL2pp::shared_ptr<SDL2pp::Texture> frontTexture, SDL2pp::shared_ptr<SDL2pp::Texture> cardTypeTexture)
 	{
 		backCardButton = frame.NewElement<DeluEngine::GUI::Button>(DeluEngine::GUI::RelativePosition{}, size, xk::Math::Aliases::Vector2{ 0.5f, 0.5f }, nullptr, backTexture);
 		frontCard = frame.NewElement<DeluEngine::GUI::Image>(DeluEngine::GUI::RelativePosition{}, size, xk::Math::Aliases::Vector2{ 0.5f, 0.5f }, nullptr, frontTexture);
@@ -93,7 +93,7 @@ export struct VictoryScreen
 	std::unique_ptr<DeluEngine::GUI::Button> retryButton;
 	std::unique_ptr<DeluEngine::GUI::Button> quitButton;
 
-	VictoryScreen(DeluEngine::Engine& engine, DeluEngine::GUI::UIFrame& frame)
+	VictoryScreen(DeluEngine::Engine& engine, DeluEngine::GUI::GUIEngine& frame)
 	{
 		SDL_Surface* quitButtonPNG = IMG_Load("Quit_Button.png");
 		SDL_Surface* retryButtonPNG = IMG_Load("PlayAgain_Button.png");
@@ -124,7 +124,7 @@ export struct PauseScreen
 	std::unique_ptr<DeluEngine::GUI::Button> retryButton;
 	std::unique_ptr<DeluEngine::GUI::Button> resumeButton;
 	DeluEngine::Engine* e;
-	PauseScreen(DeluEngine::Engine& engine, DeluEngine::GUI::UIFrame& frame)
+	PauseScreen(DeluEngine::Engine& engine, DeluEngine::GUI::GUIEngine& frame)
 	{
 		
 
@@ -185,22 +185,20 @@ export struct CardGrid : public DeluEngine::SceneSystem
 	std::unique_ptr<PauseScreen> pauseScreen;
 
 	std::array<Card*, 2> selectedCards{};
-	DeluEngine::GUI::UIFrame* owningFrame;
+	DeluEngine::Engine* engine;
 	float timer = 0;
 	float gameTime = 0;
 	int moveCount = 0;
 	bool pendingClosePauseScreen = false;
 
 public:
-	CardGrid(const gsl::not_null<ECS::Scene*> scene, DeluEngine::GUI::UIFrame& frame, xk::Math::Aliases::iVector2 gridSize, std::span<SDL2pp::shared_ptr<SDL2pp::Texture>> textures, SDL2pp::shared_ptr<SDL2pp::Texture> cardBack, SDL2pp::shared_ptr<SDL2pp::Texture> cardFront) :
+	CardGrid(const gsl::not_null<ECS::Scene*> scene, DeluEngine::GUI::GUIEngine& frame, xk::Math::Aliases::iVector2 gridSize, std::span<SDL2pp::shared_ptr<SDL2pp::Texture>> textures, SDL2pp::shared_ptr<SDL2pp::Texture> cardBack, SDL2pp::shared_ptr<SDL2pp::Texture> cardFront) :
 		SceneSystem{ scene }
 	{
-		owningFrame = &frame;
 
-
-		DeluEngine::Engine& engine = static_cast<DeluEngine::Scene&>(GetScene()).GetEngine();
-		engine.controllerContext.PushContext("Game");
-		engine.controllerContext.GetCurrentContext().FindAction("Pause").BindButton([this](bool) { OpenPauseMenu();  });
+		engine = &static_cast<DeluEngine::Scene&>(GetScene()).GetEngine();
+		engine->controllerContext.PushContext("Game");
+		engine->controllerContext.GetCurrentContext().FindAction("Pause").BindButton([this](bool) { OpenPauseMenu();  });
 
 		TTF_Font* arialFont = TTF_OpenFont("arial.ttf", 20);
 
@@ -299,7 +297,7 @@ public:
 
 		if(!victoryScreen && cards.size() == 0)
 		{
-			victoryScreen = std::make_unique<VictoryScreen>(*GetScene().GetExternalSystemAs<gsl::not_null<DeluEngine::Engine*>>(), *owningFrame);
+			victoryScreen = std::make_unique<VictoryScreen>(*engine, engine->guiEngine);
 			gameTimeText->SetFramePosition(DeluEngine::GUI::RelativePosition{ {0.5f, 0.8f} });
 			gameTimeText->SetPivot({0.5f, 0.5f});
 
@@ -334,7 +332,7 @@ public:
 
 	void OpenPauseMenu()
 	{
-		pauseScreen = std::make_unique<PauseScreen>(*GetScene().GetExternalSystemAs<gsl::not_null<DeluEngine::Engine*>>(), *owningFrame);
+		pauseScreen = std::make_unique<PauseScreen>(*engine, engine->guiEngine);
 
 		DeluEngine::Engine& engine = *GetScene().GetExternalSystemAs<gsl::not_null<DeluEngine::Engine*>>();
 		engine.controllerContext.GetCurrentContext().FindAction("Resume").BindButton([this](bool) { ClosePauseMenu();  });
@@ -358,12 +356,12 @@ void CardMatchSceneLoader::operator()(ECS::Scene& s) const
 	DeluEngine::Engine& engine = *s.GetExternalSystemAs<gsl::not_null<DeluEngine::Engine*>>();
 	DeluEngine::SceneGUISystem& gui = scene.CreateSystem<DeluEngine::SceneGUISystem>();
 
-	DeluEngine::GUI::UIFrame& frame = gui.NewPersistentFrame();
-	frame.internalTexture = engine.renderer.backend->CreateTexture(
-		SDL_PIXELFORMAT_RGBA32,
-		SDL2pp::TextureAccess(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET),
-		1600, 900);
-	frame.internalTexture->SetBlendMode(SDL_BLENDMODE_BLEND);
+	//DeluEngine::GUI::UIFrame& frame = gui.NewPersistentFrame();
+	//frame.internalTexture = engine.renderer.backend->CreateTexture(
+	//	SDL_PIXELFORMAT_RGBA32,
+	//	SDL2pp::TextureAccess(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET),
+	//	1600, 900);
+	//frame.internalTexture->SetBlendMode(SDL_BLENDMODE_BLEND);
 
 	std::array pngSurfaces
 	{
@@ -409,7 +407,7 @@ void CardMatchSceneLoader::operator()(ECS::Scene& s) const
 		SDL_FreeSurface(surface);
 	}
 
-	CardGrid& grid = scene.CreateSystem<CardGrid>(frame, cardCount, cardTextures, cardBackTexture, cardFrontTexture);
+	CardGrid& grid = scene.CreateSystem<CardGrid>(engine.guiEngine, cardCount, cardTextures, cardBackTexture, cardFrontTexture);
 }
 
 export CardMatchSceneLoader CardMatchScene(xk::Math::Aliases::iVector2 cardCount)
@@ -427,12 +425,13 @@ export auto TitleScene()
 
 		DeluEngine::Engine& engine = static_cast<DeluEngine::Scene&>(s).GetEngine();
 		//engine.guiEngine.frames.push_back({});
-		DeluEngine::GUI::UIFrame& frame = gui.NewPersistentFrame();
-		frame.internalTexture = engine.renderer.backend->CreateTexture(
-			SDL_PIXELFORMAT_RGBA32,
-			SDL2pp::TextureAccess(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET),
-			1600, 900);
-		frame.internalTexture->SetBlendMode(SDL_BLENDMODE_BLEND);
+		//DeluEngine::GUI::UIFrame& frame = gui.NewPersistentFrame();
+		//frame.internalTexture = engine.renderer.backend->CreateTexture(
+		//	SDL_PIXELFORMAT_RGBA32,
+		//	SDL2pp::TextureAccess(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET),
+		//	1600, 900);
+		//frame.internalTexture->SetBlendMode(SDL_BLENDMODE_BLEND);
+		DeluEngine::GUI::GUIEngine& frame = engine.guiEngine;
 		SDL_Surface* quitButtonPNG = IMG_Load("Quit_Button.png");
 		SDL_Surface* playButtonPNG = IMG_Load("Play_Button.png");
 

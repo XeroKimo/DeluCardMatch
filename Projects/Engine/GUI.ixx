@@ -325,26 +325,6 @@ namespace DeluEngine::GUI
 
 	export class UIElement;
 
-	export class UIFrame
-	{
-		friend UIElement;
-
-	private:
-		std::vector<UIElement*> m_rootElements;
-
-	public:
-		SDL2pp::unique_ptr<SDL2pp::Texture> internalTexture;
-		xk::Math::Aliases::Vector2 GetSize() const noexcept { return internalTexture->GetSize(); }
-
-		template<std::derived_from<UIElement> Ty, class... ExtraConstructorParams>
-		std::unique_ptr<Ty> NewElement(PositionVariant position, SizeVariant size, xk::Math::Aliases::Vector2 pivot, UIElement* parent = nullptr, ExtraConstructorParams&&... params) 
-		{
-			return std::make_unique<Ty>(*this, position, size, pivot, parent, std::forward<ExtraConstructorParams>(params)...);
-		}
-
-		const std::vector<UIElement*>& GetRootElements() const noexcept { return m_rootElements; }
-	};
-
 	export enum class PivotChangePolicy
 	{
 		//The underlying position will not change, will result in appearing in a different position however
@@ -360,11 +340,14 @@ namespace DeluEngine::GUI
 		KeepRelativeTransform
 	};
 
+	export struct GUIEngine;
+
 	export class UIElement
 	{
+		friend GUIEngine;
 
 	private:
-		UIFrame* m_ownerFrame;
+		GUIEngine* m_engine = nullptr;
 		UIElement* m_parent = nullptr;
 		std::vector<UIElement*> m_children;
 		PositionVariant m_position;
@@ -376,34 +359,24 @@ namespace DeluEngine::GUI
 		bool debugEnableRaytrace = false;
 
 	public:
-		UIElement(UIFrame& ownerFrame) :
-			m_ownerFrame{ &ownerFrame }
+		UIElement(GUIEngine& engine) :
+			m_engine{ &engine }
 		{
 
 		}
 
-		UIElement(UIFrame& ownerFrame, PositionVariant position, SizeVariant size, xk::Math::Aliases::Vector2 pivot, UIElement* parent = nullptr) :
-			m_ownerFrame{ &ownerFrame },
-			m_parent{ parent },
+		UIElement(GUIEngine& engine, PositionVariant position, SizeVariant size, xk::Math::Aliases::Vector2 pivot) :
+			m_engine{ &engine },
 			m_position{ position },
 			m_size{ size },
 			m_pivot{ pivot }
 		{
-			SetParent(parent);
 		}
 
 		UIElement(const UIElement&) = delete;
 		UIElement(UIElement&&) noexcept = default;
 
-		virtual ~UIElement()
-		{
-			while(!m_children.empty())
-			{
-				m_children.back()->SetParent(m_parent, UIReparentLogic::KeepAbsoluteTransform);
-			}
-			SetParent(nullptr);
-			std::erase(m_ownerFrame->m_rootElements, this);
-		}
+		virtual ~UIElement();
 
 		UIElement& operator=(const UIElement&) = delete;
 		UIElement& operator=(UIElement&&) noexcept = default;
@@ -429,7 +402,7 @@ namespace DeluEngine::GUI
 		{
 			const xk::Math::Aliases::Vector2 size = GetFrameSizeAs<AbsoluteSize>().value;
 			const xk::Math::Aliases::Vector2 pivotOffset = { GetPivot().X() * -size.X(), GetPivot().Y() * -size.Y() };
-			return ConvertPositionRepresentation<Ty>(AbsolutePosition{ pivotOffset }, AbsoluteSize{ m_ownerFrame->GetSize() });
+			return ConvertPositionRepresentation<Ty>(AbsolutePosition{ pivotOffset }, GetRendererSize());
 		}
 
 		template<VariantMember<PositionVariant> Ty>
@@ -439,7 +412,7 @@ namespace DeluEngine::GUI
 				{
 					const xk::Math::Aliases::Vector2 size = GetFrameSizeAs<AbsoluteSize>().value;
 					const xk::Math::Aliases::Vector2 pivotOffset = { GetPivot().X() * -size.X(), GetPivot().Y() * -size.Y() };
-					return ConvertPositionRepresentation<Ty>(AbsolutePosition{ GetLocalPositionAs<AbsolutePosition>().value + GetParentPivotedFrameAbsolutePosition().value + pivotOffset }, AbsoluteSize{ m_ownerFrame->GetSize() });
+					return ConvertPositionRepresentation<Ty>(AbsolutePosition{ GetLocalPositionAs<AbsolutePosition>().value + GetParentPivotedFrameAbsolutePosition().value + pivotOffset }, GetRendererSize());
 				}, m_position);
 		}
 
@@ -448,14 +421,14 @@ namespace DeluEngine::GUI
 		{
 			return std::visit([this](const auto& val) -> Ty
 				{
-					return ConvertPositionRepresentation<Ty>(AbsolutePosition{ GetLocalPositionAs<AbsolutePosition>().value + GetParentPivotedFrameAbsolutePosition().value }, AbsoluteSize{ m_ownerFrame->GetSize() });
+					return ConvertPositionRepresentation<Ty>(AbsolutePosition{ GetLocalPositionAs<AbsolutePosition>().value + GetParentPivotedFrameAbsolutePosition().value }, GetRendererSize());
 				}, m_position);
 		}
 
 		template<VariantMember<SizeVariant> Ty>
 		Ty GetFrameSizeAs() const noexcept
 		{
-			return ConvertSizeRepresentation<Ty>(GetLocalSizeAs<AbsoluteSize>(), AbsoluteSize{ m_ownerFrame->GetSize() });
+			return ConvertSizeRepresentation<Ty>(GetLocalSizeAs<AbsoluteSize>(), GetRendererSize());
 		}
 
 		template<VariantMember<PositionVariant> Ty>
@@ -517,7 +490,7 @@ namespace DeluEngine::GUI
 				{
 					using Inner_Ty = std::remove_cvref_t<decltype(innerVal)>;
 					AbsolutePosition parentPosition = (m_parent) ? m_parent->GetPivotedFramePositionAs<AbsolutePosition>() : AbsolutePosition{};
-					AbsolutePosition requestedPosition = ConvertPositionRepresentation<AbsolutePosition>(newVal, AbsoluteSize{ m_ownerFrame->GetSize() });
+					AbsolutePosition requestedPosition = ConvertPositionRepresentation<AbsolutePosition>(newVal, GetRendererSize());
 					innerVal = ConvertPositionRepresentation<Inner_Ty>(AbsolutePosition{ requestedPosition.value - parentPosition.value }, GetParentAbsoluteSize());
 				}, m_position, newPos);
 		}
@@ -527,7 +500,7 @@ namespace DeluEngine::GUI
 			std::visit([this](auto& innerVal, auto& newVal)
 				{
 					using Inner_Ty = std::remove_cvref_t<decltype(innerVal)>;
-					AbsoluteSize requestedAbsoluteSize = ConvertSizeRepresentation<AbsoluteSize>(newVal, AbsoluteSize{ m_ownerFrame->GetSize() });
+					AbsoluteSize requestedAbsoluteSize = ConvertSizeRepresentation<AbsoluteSize>(newVal, GetRendererSize());
 					innerVal = ConvertSizeRepresentation<Inner_Ty>(requestedAbsoluteSize, GetParentAbsoluteSize());
 				}, m_size, newSize);
 		}
@@ -566,7 +539,7 @@ namespace DeluEngine::GUI
 
 		AbsoluteSize GetParentAbsoluteSize() const noexcept
 		{
-			return m_parent ? m_parent->GetFrameSizeAs<AbsoluteSize>() : AbsoluteSize{ m_ownerFrame->GetSize() };
+			return m_parent ? m_parent->GetFrameSizeAs<AbsoluteSize>() : GetRendererSize();
 		}
 
 		AbsolutePosition GetParentPivotedFrameAbsolutePosition() const noexcept
@@ -574,7 +547,7 @@ namespace DeluEngine::GUI
 			return m_parent ? m_parent->GetPivotedFramePositionAs<AbsolutePosition>() : AbsolutePosition{};
 		}
 
-		const UIFrame& GetFrame() const { return *m_ownerFrame; }
+		AbsoluteSize GetRendererSize() const noexcept;
 	};
 
 	export class Image : public UIElement
@@ -584,14 +557,14 @@ namespace DeluEngine::GUI
 		bool render = true;
 
 	public:
-		Image(UIFrame& ownerFrame) :
-			UIElement{ ownerFrame }
+		Image(GUIEngine& engine) :
+			UIElement{ engine }
 		{
 
 		}
 
-		Image(UIFrame& ownerFrame, PositionVariant position, SizeVariant size, xk::Math::Aliases::Vector2 pivot, UIElement* parent = nullptr, SDL2pp::shared_ptr<SDL2pp::Texture> texture = nullptr) :
-			UIElement{ ownerFrame, position, size, pivot, parent },
+		Image(GUIEngine& engine, PositionVariant position, SizeVariant size, xk::Math::Aliases::Vector2 pivot, SDL2pp::shared_ptr<SDL2pp::Texture> texture = nullptr) :
+			UIElement{ engine, position, size, pivot },
 			texture{ texture }
 		{
 		}
@@ -607,14 +580,14 @@ namespace DeluEngine::GUI
 		bool render = true;
 
 	public:
-		Button(UIFrame& ownerFrame) :
-			UIElement{ ownerFrame }
+		Button(GUIEngine& engine) :
+			UIElement{ engine }
 		{
 			debugEnableRaytrace = true;
 		}
 
-		Button(UIFrame& ownerFrame, PositionVariant position, SizeVariant size, xk::Math::Aliases::Vector2 pivot, UIElement* parent = nullptr, SDL2pp::shared_ptr<SDL2pp::Texture> texture = nullptr) :
-			UIElement{ ownerFrame, position, size, pivot, parent },
+		Button(GUIEngine& engine, PositionVariant position, SizeVariant size, xk::Math::Aliases::Vector2 pivot, SDL2pp::shared_ptr<SDL2pp::Texture> texture = nullptr) :
+			UIElement{ engine, position, size, pivot },
 			texture{ texture }
 		{
 			debugEnableRaytrace = true;
@@ -636,13 +609,13 @@ namespace DeluEngine::GUI
 		bool render = true;
 
 	public:
-		Text(UIFrame& ownerFrame) :
-			UIElement{ ownerFrame }
+		Text(GUIEngine& engine) :
+			UIElement{ engine }
 		{
 		}
 
-		Text(UIFrame& ownerFrame, PositionVariant position, SizeVariant size, xk::Math::Aliases::Vector2 pivot, UIElement* parent = nullptr) :
-			UIElement{ ownerFrame, position, size, pivot, parent }
+		Text(GUIEngine& engine, PositionVariant position, SizeVariant size, xk::Math::Aliases::Vector2 pivot) :
+			UIElement{ engine, position, size, pivot }
 		{
 		}
 
@@ -675,33 +648,41 @@ namespace DeluEngine::GUI
 		return nullptr;
 	}
 
-	DeluEngine::GUI::UIElement* GetHoveredElement(DeluEngine::GUI::UIFrame& frame, DeluEngine::GUI::AbsolutePosition mousePos)
-	{
-		std::vector<DeluEngine::GUI::UIElement*> children = frame.GetRootElements();
-		for(auto elm = children.rbegin(); elm != children.rend(); elm++)
-		{
-			auto child = *elm;
-			if(auto hoveredElement = GetHoveredElement(*child, mousePos); hoveredElement)
-				return hoveredElement;
-		}
-
-		return nullptr;
-	}
+	template<std::derived_from<UIElement> Ty>
+	using UniqueHandle = std::unique_ptr<Ty>;
 
 	export struct GUIEngine
 	{
 		bool leftClickPressed = false;
 		bool previousLeftClickPressed = false;
+
+		SDL2pp::unique_ptr<SDL2pp::Texture> internalTexture;
 		AbsolutePosition mousePosition;
-		std::vector<UIFrame*> frames;
+		std::vector<UIElement*> rootElements;
 		UIElement* hoveredElement = nullptr;
 		UIElement* previousHoveredElement = nullptr;
 		UIElement* initialLeftClickedElement = nullptr;
 
+		template<std::derived_from<UIElement> Ty, class... ExtraConstructorParams>
+		UniqueHandle<Ty> NewElement(PositionVariant position, SizeVariant size, xk::Math::Aliases::Vector2 pivot, UIElement* parent = nullptr, ExtraConstructorParams&&... params)
+		{
+			UniqueHandle<Ty> element = std::make_unique<Ty>(*this, position, size, pivot, std::forward<ExtraConstructorParams>(params)...);
+			if(parent)
+			{
+				element->m_parent = parent;
+				element->m_parent->m_children.push_back(element.get());
+			}
+			else
+			{
+				rootElements.push_back(element.get());
+			}
+			return element;
+		}
+
 		void UpdateHoveredElement()
 		{
 			previousHoveredElement = std::exchange(hoveredElement, nullptr);
-			for(auto it = frames.rbegin(); it != frames.rend() && !hoveredElement; it++)
+			for(auto it = rootElements.rbegin(); it != rootElements.rend() && !hoveredElement; it++)
 				hoveredElement = GetHoveredElement(*(*it), mousePosition);
 
 			if(hoveredElement != previousHoveredElement)
@@ -737,7 +718,27 @@ namespace DeluEngine::GUI
 			}
 			previousLeftClickPressed = leftClickPressed;
 		}
+
+		AbsoluteSize GetFrameSize() const noexcept
+		{
+			return { internalTexture->GetSize() };
+		}
 	};
+
+	UIElement::~UIElement()
+	{
+		while(!m_children.empty())
+		{
+			m_children.back()->SetParent(m_parent, UIReparentLogic::KeepAbsoluteTransform);
+		}
+		SetParent(nullptr);
+		std::erase(m_engine->rootElements, this);
+	}
+
+	AbsoluteSize DeluEngine::GUI::UIElement::GetRendererSize() const noexcept
+	{
+		return m_engine->GetFrameSize();
+	}
 
 	export void ProcessEvent(GUIEngine& engine, const SDL2pp::Event& event, xk::Math::Aliases::Vector2 windowSize);
 }
