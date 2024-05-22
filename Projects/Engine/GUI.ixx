@@ -341,10 +341,12 @@ namespace DeluEngine::GUI
 	};
 
 	export struct GUIEngine;
+	struct UIElementDeleter;
 
 	export class UIElement
 	{
 		friend GUIEngine;
+		friend UIElementDeleter;
 
 	private:
 		GUIEngine* m_engine = nullptr;
@@ -648,8 +650,13 @@ namespace DeluEngine::GUI
 		return nullptr;
 	}
 
-	template<std::derived_from<UIElement> Ty>
-	using UniqueHandle = std::unique_ptr<Ty>;
+	struct UIElementDeleter
+	{
+		void operator()(UIElement* element);
+	};
+
+	export template<std::derived_from<UIElement> Ty>
+	using UniqueHandle = std::unique_ptr<Ty, UIElementDeleter>;
 
 	export struct GUIEngine
 	{
@@ -659,6 +666,7 @@ namespace DeluEngine::GUI
 		SDL2pp::unique_ptr<SDL2pp::Texture> internalTexture;
 		AbsolutePosition mousePosition;
 		std::vector<UIElement*> rootElements;
+		std::vector<UIElement*> pendingDeletedElements;
 		UIElement* hoveredElement = nullptr;
 		UIElement* previousHoveredElement = nullptr;
 		UIElement* initialLeftClickedElement = nullptr;
@@ -666,7 +674,7 @@ namespace DeluEngine::GUI
 		template<std::derived_from<UIElement> Ty, class... ExtraConstructorParams>
 		UniqueHandle<Ty> NewElement(PositionVariant position, SizeVariant size, xk::Math::Aliases::Vector2 pivot, UIElement* parent = nullptr, ExtraConstructorParams&&... params)
 		{
-			UniqueHandle<Ty> element = std::make_unique<Ty>(*this, position, size, pivot, std::forward<ExtraConstructorParams>(params)...);
+			UniqueHandle<Ty> element{ new Ty(*this, position, size, pivot, std::forward<ExtraConstructorParams>(params)...), {} };
 			if(parent)
 			{
 				element->m_parent = parent;
@@ -681,10 +689,22 @@ namespace DeluEngine::GUI
 
 		void UpdateHoveredElement()
 		{
+			if(std::any_of(pendingDeletedElements.begin(), pendingDeletedElements.end(), [this](UIElement* other) { return other == hoveredElement; }))
+				hoveredElement = nullptr;
+
+			for(UIElement* element : pendingDeletedElements)
+			{
+				delete element;
+			}
+			pendingDeletedElements.clear();
+
 			previousHoveredElement = std::exchange(hoveredElement, nullptr);
 			for(auto it = rootElements.rbegin(); it != rootElements.rend() && !hoveredElement; it++)
 				hoveredElement = GetHoveredElement(*(*it), mousePosition);
+		}
 
+		void DispatchHoveredEvent()
+		{
 			if(hoveredElement != previousHoveredElement)
 			{
 				if(previousHoveredElement)
@@ -696,15 +716,7 @@ namespace DeluEngine::GUI
 					hoveredElement->HandleEvent(DeluEngine::GUI::MouseEvent{ DeluEngine::GUI::MouseEventType::Overlap, std::nullopt });
 				}
 			}
-		}
 
-		void ResetHoveredElements()
-		{
-			previousHoveredElement = hoveredElement = nullptr;
-		}
-
-		void DispatchHoveredEvent()
-		{
 			if(hoveredElement)
 			{
 				std::optional action = [this]() -> std::optional<DeluEngine::GUI::MouseClickType>
@@ -738,6 +750,11 @@ namespace DeluEngine::GUI
 	AbsoluteSize DeluEngine::GUI::UIElement::GetRendererSize() const noexcept
 	{
 		return m_engine->GetFrameSize();
+	}
+	
+	void UIElementDeleter::operator()(UIElement* element)
+	{
+		element->m_engine->pendingDeletedElements.push_back(element);
 	}
 
 	export void ProcessEvent(GUIEngine& engine, const SDL2pp::Event& event, xk::Math::Aliases::Vector2 windowSize);

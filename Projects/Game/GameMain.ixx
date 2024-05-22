@@ -33,9 +33,9 @@ Mix_Music* bgm;
 using SDL2pp::SDL2Interface;
 export struct Card
 {
-	std::unique_ptr<DeluEngine::GUI::Button> backCardButton;
-	std::unique_ptr<DeluEngine::GUI::Image> frontCard;
-	std::unique_ptr<DeluEngine::GUI::Image> cardTypeIcon;
+	DeluEngine::GUI::UniqueHandle<DeluEngine::GUI::Button> backCardButton;
+	DeluEngine::GUI::UniqueHandle<DeluEngine::GUI::Image> frontCard;
+	DeluEngine::GUI::UniqueHandle<DeluEngine::GUI::Image> cardTypeIcon;
 
 	Card(DeluEngine::GUI::GUIEngine& frame, DeluEngine::GUI::SizeVariant size, SDL2pp::shared_ptr<SDL2pp::Texture> backTexture, SDL2pp::shared_ptr<SDL2pp::Texture> frontTexture, SDL2pp::shared_ptr<SDL2pp::Texture> cardTypeTexture)
 	{
@@ -90,8 +90,8 @@ export CardMatchSceneLoader CardMatchScene(xk::Math::Aliases::iVector2 cardCount
 
 export struct VictoryScreen
 {
-	std::unique_ptr<DeluEngine::GUI::Button> retryButton;
-	std::unique_ptr<DeluEngine::GUI::Button> quitButton;
+	DeluEngine::GUI::UniqueHandle<DeluEngine::GUI::Button> retryButton;
+	DeluEngine::GUI::UniqueHandle<DeluEngine::GUI::Button> quitButton;
 
 	VictoryScreen(DeluEngine::Engine& engine, DeluEngine::GUI::GUIEngine& frame)
 	{
@@ -119,10 +119,10 @@ export struct VictoryScreen
 
 export struct PauseScreen
 {
-	std::unique_ptr<DeluEngine::GUI::Image> blankScreen;
-	std::unique_ptr<DeluEngine::GUI::Button> quitButton;
-	std::unique_ptr<DeluEngine::GUI::Button> retryButton;
-	std::unique_ptr<DeluEngine::GUI::Button> resumeButton;
+	DeluEngine::GUI::UniqueHandle<DeluEngine::GUI::Image> blankScreen;
+	DeluEngine::GUI::UniqueHandle<DeluEngine::GUI::Button> quitButton;
+	DeluEngine::GUI::UniqueHandle<DeluEngine::GUI::Button> retryButton;
+	DeluEngine::GUI::UniqueHandle<DeluEngine::GUI::Button> resumeButton;
 	DeluEngine::Engine* e;
 	PauseScreen(DeluEngine::Engine& engine, DeluEngine::GUI::GUIEngine& frame)
 	{
@@ -178,9 +178,9 @@ export struct PauseScreen
 export struct CardGrid : public DeluEngine::SceneSystem
 {
 	std::vector<std::unique_ptr<Card>> cards;
-	std::unique_ptr<DeluEngine::GUI::UIElement> gridAligningParent;
-	std::unique_ptr<DeluEngine::GUI::Text> gameTimeText;
-	std::unique_ptr<DeluEngine::GUI::Text> moveCountText;
+	DeluEngine::GUI::UniqueHandle<DeluEngine::GUI::UIElement> gridAligningParent;
+	DeluEngine::GUI::UniqueHandle<DeluEngine::GUI::Text> gameTimeText;
+	DeluEngine::GUI::UniqueHandle<DeluEngine::GUI::Text> moveCountText;
 	std::unique_ptr<VictoryScreen> victoryScreen;
 	std::unique_ptr<PauseScreen> pauseScreen;
 
@@ -343,8 +343,6 @@ public:
 	void ClosePauseMenu()
 	{
 		pauseScreen = nullptr;
-		DeluEngine::Engine& engine = *GetScene().GetExternalSystemAs<gsl::not_null<DeluEngine::Engine*>>();
-		engine.guiEngine.ResetHoveredElements();
 	}
 };
 
@@ -355,13 +353,6 @@ void CardMatchSceneLoader::operator()(ECS::Scene& s) const
 	DeluEngine::Scene& scene = static_cast<DeluEngine::Scene&>(s);
 	DeluEngine::Engine& engine = *s.GetExternalSystemAs<gsl::not_null<DeluEngine::Engine*>>();
 	DeluEngine::SceneGUISystem& gui = scene.CreateSystem<DeluEngine::SceneGUISystem>();
-
-	//DeluEngine::GUI::UIFrame& frame = gui.NewPersistentFrame();
-	//frame.internalTexture = engine.renderer.backend->CreateTexture(
-	//	SDL_PIXELFORMAT_RGBA32,
-	//	SDL2pp::TextureAccess(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET),
-	//	1600, 900);
-	//frame.internalTexture->SetBlendMode(SDL_BLENDMODE_BLEND);
 
 	std::array pngSurfaces
 	{
@@ -424,13 +415,6 @@ export auto TitleScene()
 		DeluEngine::SceneGUISystem& gui = scene.CreateSystem<DeluEngine::SceneGUISystem>();
 
 		DeluEngine::Engine& engine = static_cast<DeluEngine::Scene&>(s).GetEngine();
-		//engine.guiEngine.frames.push_back({});
-		//DeluEngine::GUI::UIFrame& frame = gui.NewPersistentFrame();
-		//frame.internalTexture = engine.renderer.backend->CreateTexture(
-		//	SDL_PIXELFORMAT_RGBA32,
-		//	SDL2pp::TextureAccess(SDL_TEXTUREACCESS_STATIC | SDL_TEXTUREACCESS_TARGET),
-		//	1600, 900);
-		//frame.internalTexture->SetBlendMode(SDL_BLENDMODE_BLEND);
 		DeluEngine::GUI::GUIEngine& frame = engine.guiEngine;
 		SDL_Surface* quitButtonPNG = IMG_Load("Quit_Button.png");
 		SDL_Surface* playButtonPNG = IMG_Load("Play_Button.png");

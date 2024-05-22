@@ -137,7 +137,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 			if(engine.queuedScene)
 			{
 				engine.CreateScene(engine.queuedScene);
-				engine.guiEngine.ResetHoveredElements();
 				engine.queuedScene = nullptr;
 			}
 			else
