@@ -161,18 +161,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Game\Bullet.ixx" />
-    <ClCompile Include="ControllerContextConstants.ixx" />
     <ClCompile Include="GameMain.ixx" />
-    <ClCompile Include="Game\Enemy.ixx" />
-    <ClCompile Include="Game\Level Strip\Events\BaseEvent.ixx" />
-    <ClCompile Include="Game\Level Strip\Events\EnemySpawnEvent.cpp" />
-    <ClCompile Include="Game\Level Strip\Events\EnemySpawnEvent.ixx" />
-    <ClCompile Include="Game\Level Strip\LevelStrip.ixx" />
-    <ClCompile Include="Game\Player.ixx" />
-    <ClCompile Include="Game\PlayerState.ixx" />
-    <ClCompile Include="Game\PowerUpPoint.ixx" />
-    <ClCompile Include="Game\Weapon.ixx" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

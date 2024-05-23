@@ -4,7 +4,6 @@ module;
 #include <vector>
 #include <memory>
 #include <chrono>
-//#include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_image.h>
 #include <iostream>
@@ -19,13 +18,6 @@ export module DeluGame;
 import xk.Math.Matrix;
 import DeluEngine;
 import SDL2pp;
-//import LevelStrip;
-//import DeluGame.Player;
-//import DeluGame.PlayerState;
-//import DeluGame.PowerUpPoint;
-//import Enemy;
-//import LevelStrip.Event.EnemySpawn;
-//import DeluGame.ControllerContextConstants;
 
 std::array<Mix_Chunk*, 3> correctEffects;
 std::array<Mix_Chunk*, 4> missEffects;
