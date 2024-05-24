@@ -14,13 +14,8 @@ namespace DeluEngine
 		m_systemOwnedElements.clear();
 	}
 
-	Engine& Scene::GetEngine() const
+	Engine& GetEngine(const ECS::Scene& scene)
 	{
-		return *GetExternalSystemAs<gsl::not_null<Engine*>>();
-	}
-
-	Engine& GameObject::GetEngine() const noexcept
-	{
-		return static_cast<const Scene&>(ECS::GameObject::GetScene()).GetEngine();
+		return scene.GetExternalSystem().As<Engine>();
 	}
 }

@@ -95,14 +95,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	DeluEngine::Engine engine
 	{
 		.window{ SDL2pp::CreateWindow("Bullet Hell", { 1600, 900 }, SDL2pp::WindowFlag::OpenGL) },
-		.renderer{ engine.window.get() }
+		.renderer{ engine.window.get() },
 	};
 	SDL_Init(SDL_INIT_AUDIO);
 
 	Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
-	engine.box2DCallbacks.engine = &engine;
-	engine.physicsWorld.SetContactListener(&engine.box2DCallbacks);
-	engine.physicsWorld.SetDebugDraw(&engine.box2DCallbacks);
+	//engine.box2DCallbacks.engine = &engine;
+	//engine.physicsWorld.SetContactListener(&engine.box2DCallbacks);
+	//engine.physicsWorld.SetDebugDraw(&engine.box2DCallbacks);
 	DeluEngine::Input::defaultController = &engine.controller;
 
 	engine.guiEngine.internalTexture = engine.renderer.backend->CreateTexture(
@@ -111,12 +111,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		1600, 900);
 	engine.guiEngine.internalTexture->SetBlendMode(SDL_BLENDMODE_BLEND);
 
-	engine.CreateScene(GameMain(engine));
+	engine.sceneManager.LoadScene(GameMain(engine));
 	engine.renderer.debugCallbacks.push_back([&engine](DeluEngine::DebugRenderer& renderer)
 		{
-			engine.scene->DebugDraw(renderer);
-			engine.box2DCallbacks.SetFlags(b2Draw::e_shapeBit);
-			engine.physicsWorld.DebugDraw();
+			//engine.scene->DebugDraw(renderer);
+			//engine.box2DCallbacks.SetFlags(b2Draw::e_shapeBit);
+			//engine.physicsWorld.DebugDraw();
 		});
 
 	std::chrono::duration<float> physicsAccumulator{ 0.f };
@@ -136,7 +136,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		{
 			if(engine.queuedScene)
 			{
-				engine.CreateScene(engine.queuedScene);
+				engine.sceneManager.LoadScene(engine.queuedScene);
 				engine.queuedScene = nullptr;
 			}
 			else
@@ -154,12 +154,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 						while(physicsAccumulator >= physicsStep)
 						{
-							engine.physicsWorld.Step(physicsStep.count(), 8, 3);
+							//engine.physicsWorld.Step(physicsStep.count(), 8, 3);
 							physicsAccumulator -= physicsStep;
 
 							//std::cout << "Body pos " << b->GetPosition().x << ", " << b->GetPosition().y << "\n";
 						}
-						engine.scene->Update(deltaTime.count());
+						engine.sceneManager.Update(deltaTime.count());
 					});
 
 				engine.controller.SwapBuffers();

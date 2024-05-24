@@ -188,7 +188,7 @@ public:
 		SceneSystem{ scene }
 	{
 
-		engine = &static_cast<DeluEngine::Scene&>(GetScene()).GetEngine();
+		engine = &GetEngine();
 		engine->controllerContext.PushContext("Game");
 		engine->controllerContext.GetCurrentContext().FindAction("Pause").BindButton([this](bool) { OpenPauseMenu();  });
 
@@ -257,7 +257,7 @@ public:
 
 	~CardGrid()
 	{
-		DeluEngine::Engine& engine = static_cast<DeluEngine::Scene&>(GetScene()).GetEngine();
+		DeluEngine::Engine& engine = GetEngine();
 		engine.controllerContext.PopContext();
 	}
 
@@ -326,7 +326,7 @@ public:
 	{
 		pauseScreen = std::make_unique<PauseScreen>(*engine, engine->guiEngine);
 
-		DeluEngine::Engine& engine = *GetScene().GetExternalSystemAs<gsl::not_null<DeluEngine::Engine*>>();
+		DeluEngine::Engine& engine = GetEngine();
 		engine.controllerContext.GetCurrentContext().FindAction("Resume").BindButton([this](bool) { ClosePauseMenu();  });
 
 		pauseScreen->resumeButton->onClicked = [this] { pendingClosePauseScreen = true; };
@@ -342,9 +342,9 @@ public:
 void CardMatchSceneLoader::operator()(ECS::Scene& s) const
 {
 	std::cout << "Entered card match scene\n";
-	DeluEngine::Scene& scene = static_cast<DeluEngine::Scene&>(s);
-	DeluEngine::Engine& engine = *s.GetExternalSystemAs<gsl::not_null<DeluEngine::Engine*>>();
-	DeluEngine::SceneGUISystem& gui = scene.CreateSystem<DeluEngine::SceneGUISystem>();
+
+	DeluEngine::Engine& engine = DeluEngine::GetEngine(s);
+	DeluEngine::SceneGUISystem& gui = s.CreateSystem<DeluEngine::SceneGUISystem>();
 
 	std::array pngSurfaces
 	{
@@ -390,7 +390,7 @@ void CardMatchSceneLoader::operator()(ECS::Scene& s) const
 		SDL_FreeSurface(surface);
 	}
 
-	CardGrid& grid = scene.CreateSystem<CardGrid>(engine.guiEngine, cardCount, cardTextures, cardBackTexture, cardFrontTexture);
+	CardGrid& grid = s.CreateSystem<CardGrid>(engine.guiEngine, cardCount, cardTextures, cardBackTexture, cardFrontTexture);
 }
 
 export CardMatchSceneLoader CardMatchScene(xk::Math::Aliases::iVector2 cardCount)
@@ -403,10 +403,10 @@ export auto TitleScene()
 {
 	return [](ECS::Scene& s)
 	{
-		DeluEngine::Scene& scene = static_cast<DeluEngine::Scene&>(s);
-		DeluEngine::SceneGUISystem& gui = scene.CreateSystem<DeluEngine::SceneGUISystem>();
 
-		DeluEngine::Engine& engine = static_cast<DeluEngine::Scene&>(s).GetEngine();
+		DeluEngine::SceneGUISystem& gui = s.CreateSystem<DeluEngine::SceneGUISystem>();
+
+		DeluEngine::Engine& engine = DeluEngine::GetEngine(s);
 		DeluEngine::GUI::GUIEngine& frame = engine.guiEngine;
 		SDL_Surface* quitButtonPNG = IMG_Load("Quit_Button.png");
 		SDL_Surface* playButtonPNG = IMG_Load("Play_Button.png");
