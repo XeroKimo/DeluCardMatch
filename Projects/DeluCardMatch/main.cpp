@@ -97,6 +97,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		.window{ SDL2pp::CreateWindow("Bullet Hell", { 1600, 900 }, SDL2pp::WindowFlag::OpenGL) },
 		.renderer{ engine.window.get() },
 	};
+	engine.sceneManager.commonScenePreload = [](ECS::Scene& scene)
+		{
+			scene.CreateSystem<DeluEngine::SceneGUISystem>();
+		};
 	SDL_Init(SDL_INIT_AUDIO);
 
 	Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);

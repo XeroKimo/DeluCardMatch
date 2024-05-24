@@ -344,7 +344,7 @@ void CardMatchSceneLoader::operator()(ECS::Scene& s) const
 	std::cout << "Entered card match scene\n";
 
 	DeluEngine::Engine& engine = DeluEngine::GetEngine(s);
-	DeluEngine::SceneGUISystem& gui = s.CreateSystem<DeluEngine::SceneGUISystem>();
+	DeluEngine::SceneGUISystem& gui = s.GetSystem<DeluEngine::SceneGUISystem>();
 
 	std::array pngSurfaces
 	{
@@ -403,8 +403,7 @@ export auto TitleScene()
 {
 	return [](ECS::Scene& s)
 	{
-
-		DeluEngine::SceneGUISystem& gui = s.CreateSystem<DeluEngine::SceneGUISystem>();
+		DeluEngine::SceneGUISystem& gui = s.GetSystem<DeluEngine::SceneGUISystem>();
 
 		DeluEngine::Engine& engine = DeluEngine::GetEngine(s);
 		DeluEngine::GUI::GUIEngine& frame = engine.guiEngine;

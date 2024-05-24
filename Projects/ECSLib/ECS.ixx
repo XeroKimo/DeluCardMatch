@@ -1171,6 +1171,10 @@ namespace ECS
 		std::unique_ptr<Scene> m_scene;
 
 	public:
+		//Likely some temp thing
+		std::function<void(Scene&)> commonScenePreload;
+
+	public:
 		template<class Ty>
 		SceneManager(Ty& externalSystem) :
 			m_externalSystem{ externalSystem }
@@ -1182,6 +1186,8 @@ namespace ECS
 		void LoadScene(InitFunc func)
 		{
 			m_scene = std::make_unique<Scene>(this);
+			if(commonScenePreload)
+				commonScenePreload(*m_scene);
 			func(*m_scene);
 		}
 
