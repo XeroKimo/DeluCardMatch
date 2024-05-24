@@ -1117,8 +1117,6 @@ namespace ECS
 		}
 		virtual ~SceneSystem() = default;
 
-		virtual void Update(float deltaTime) {};
-
 		Scene& GetScene() const noexcept { return *m_scene; }
 	};
 
@@ -1152,15 +1150,6 @@ namespace ECS
 			return static_cast<Ty&>(*(*it));
 		}
 
-		//Temp
-		void Update(float deltaTime)
-		{
-			for(auto& system : m_systems)
-			{
-				system->Update(deltaTime);
-			}
-		}
-
 		xk::AnyRef GetExternalSystem() const;
 	};
 
@@ -1191,10 +1180,10 @@ namespace ECS
 			func(*m_scene);
 		}
 
-		void Update(float deltaTime)
-		{
-			m_scene->Update(deltaTime);
-		}
+		//void Update(float deltaTime)
+		//{
+		//	m_scene->Update(deltaTime);
+		//}
 
 		xk::AnyRef GetExternalSystem() const
 		{

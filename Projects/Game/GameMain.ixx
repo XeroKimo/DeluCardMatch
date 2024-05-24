@@ -167,7 +167,7 @@ export struct PauseScreen
 	}
 };
 
-export struct CardGrid : public DeluEngine::SceneSystem
+export struct CardGrid : public DeluEngine::SceneSystem, public DeluEngine::PulseCallback
 {
 	std::vector<std::unique_ptr<Card>> cards;
 	DeluEngine::GUI::UniqueHandle<DeluEngine::GUI::UIElement> gridAligningParent;
@@ -185,7 +185,8 @@ export struct CardGrid : public DeluEngine::SceneSystem
 
 public:
 	CardGrid(const gsl::not_null<ECS::Scene*> scene, DeluEngine::GUI::GUIEngine& frame, xk::Math::Aliases::iVector2 gridSize, std::span<SDL2pp::shared_ptr<SDL2pp::Texture>> textures, SDL2pp::shared_ptr<SDL2pp::Texture> cardBack, SDL2pp::shared_ptr<SDL2pp::Texture> cardFront) :
-		SceneSystem{ scene }
+		SceneSystem{ scene },
+		PulseCallback{ "Game" }
 	{
 
 		engine = &GetEngine();
@@ -253,6 +254,7 @@ public:
 				cards[y * gridSize.X() + x]->SetLocalPosition(DeluEngine::GUI::ConvertPivotEquivalentRelativePosition({ 0, 0 }, { 0.5f, 0.5f }, DeluEngine::GUI::RelativePosition{ { static_cast<float>(x) / gridSize.X(), static_cast<float>(y) / gridSize.Y() } }, cardSize, gridAligningParent->GetFrameSizeAs<DeluEngine::GUI::AbsoluteSize>()));
 			}
 		}
+
 	}
 
 	~CardGrid()
@@ -261,8 +263,9 @@ public:
 		engine.controllerContext.PopContext();
 	}
 
-	void Update(float deltaTime) override
+	void Update(std::chrono::nanoseconds dt) override
 	{
+		float deltaTime = std::chrono::duration<float>(dt).count();
 		if(pendingClosePauseScreen)
 		{
 			ClosePauseMenu();
