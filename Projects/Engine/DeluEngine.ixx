@@ -5,5 +5,6 @@ export import :EngineAware;
 export import :Renderer;
 export import :Controller;
 export import :SpriteComponent;
-export import :Physics;
+//export import :Physics;
 export import :GUI;
+export import :Heart;

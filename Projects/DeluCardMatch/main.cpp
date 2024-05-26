@@ -15,26 +15,11 @@ import SDL2pp;
 
 using namespace xk::Math::Aliases;
 
-struct ApplicationTimer
-{
-	std::chrono::steady_clock::time_point previousTick = std::chrono::steady_clock::now();
-	std::chrono::nanoseconds currentDelta;
-
-	template<std::invocable<std::chrono::nanoseconds> Callback>
-	void Tick(Callback&& callback)
-	{
-		auto currentTick = std::chrono::steady_clock::now();
-		currentDelta = currentTick - previousTick;
-		callback(currentDelta);
-		previousTick = currentTick;
-	}
-};
-
 void SetAnchors(DeluEngine::GUI::UIElement& element, Vector2 minAnchor, Vector2 maxAnchor)
 {
 	const Vector2 size = maxAnchor - minAnchor;
-	element.SetSizeRepresentation(DeluEngine::GUI::RelativeSize{ size });
-	element.SetPositionRepresentation(DeluEngine::GUI::RelativePosition{ minAnchor + Vector2{ size.X() * element.GetPivot().X(), size.Y() * element.GetPivot().Y() } });
+	element.SetLocalSizeAndRepresentation(DeluEngine::GUI::RelativeSize{ size });
+	element.SetLocalPositionAndRepresentation(DeluEngine::GUI::RelativePosition{ minAnchor + Vector2{ size.X() * element.GetPivot().X(), size.Y() * element.GetPivot().Y() } });
 }
 
 SDL2pp::FRect GetRect(const DeluEngine::GUI::UIElement& element)
@@ -91,18 +76,23 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	PSTR lpCmdLine, int nCmdShow)
 #endif
 {
-	ApplicationTimer timer;
 	DeluEngine::Engine engine
 	{
 		.window{ SDL2pp::CreateWindow("Bullet Hell", { 1600, 900 }, SDL2pp::WindowFlag::OpenGL) },
-		.renderer{ engine.window.get() }
+		.renderer{ engine.window.get() },
 	};
+
+	DeluEngine::gHeart.RegisterGroup("Game", 0);
+	engine.sceneManager.commonScenePreload = [](ECS::Scene& scene)
+		{
+			scene.CreateSystem<DeluEngine::SceneGUISystem>();
+		};
 	SDL_Init(SDL_INIT_AUDIO);
 
 	Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
-	engine.box2DCallbacks.engine = &engine;
-	engine.physicsWorld.SetContactListener(&engine.box2DCallbacks);
-	engine.physicsWorld.SetDebugDraw(&engine.box2DCallbacks);
+	//engine.box2DCallbacks.engine = &engine;
+	//engine.physicsWorld.SetContactListener(&engine.box2DCallbacks);
+	//engine.physicsWorld.SetDebugDraw(&engine.box2DCallbacks);
 	DeluEngine::Input::defaultController = &engine.controller;
 
 	engine.guiEngine.internalTexture = engine.renderer.backend->CreateTexture(
@@ -111,12 +101,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		1600, 900);
 	engine.guiEngine.internalTexture->SetBlendMode(SDL_BLENDMODE_BLEND);
 
-	engine.CreateScene(GameMain(engine));
+	engine.sceneManager.LoadScene(GameMain(engine));
 	engine.renderer.debugCallbacks.push_back([&engine](DeluEngine::DebugRenderer& renderer)
 		{
-			engine.scene->DebugDraw(renderer);
-			engine.box2DCallbacks.SetFlags(b2Draw::e_shapeBit);
-			engine.physicsWorld.DebugDraw();
+			//engine.scene->DebugDraw(renderer);
+			//engine.box2DCallbacks.SetFlags(b2Draw::e_shapeBit);
+			//engine.physicsWorld.DebugDraw();
 		});
 
 	std::chrono::duration<float> physicsAccumulator{ 0.f };
@@ -136,32 +126,33 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		{
 			if(engine.queuedScene)
 			{
-				engine.CreateScene(engine.queuedScene);
+				engine.sceneManager.LoadScene(engine.queuedScene);
 				engine.queuedScene = nullptr;
 			}
 			else
 			{
 				engine.controllerContext.Execute(engine.controller);
+				engine.guiEngine.UpdateHoveredElement();
+				engine.guiEngine.DispatchHoveredEvent();
 
-				timer.Tick([&](std::chrono::nanoseconds dt)
-					{
-						engine.guiEngine.UpdateHoveredElement();
-						engine.guiEngine.DispatchHoveredEvent();
+				//timer.Tick([&](std::chrono::nanoseconds dt)
+				//	{
 
-						std::chrono::duration<float> deltaTime = std::chrono::duration_cast<std::chrono::duration<float>>(dt);
-						static constexpr std::chrono::duration<float> physicsStep{ 1.f / 60.f };
-						physicsAccumulator += deltaTime;
+				//		std::chrono::duration<float> deltaTime = std::chrono::duration_cast<std::chrono::duration<float>>(dt);
+				//		static constexpr std::chrono::duration<float> physicsStep{ 1.f / 60.f };
+				//		physicsAccumulator += deltaTime;
 
-						while(physicsAccumulator >= physicsStep)
-						{
-							engine.physicsWorld.Step(physicsStep.count(), 8, 3);
-							physicsAccumulator -= physicsStep;
+				//		while(physicsAccumulator >= physicsStep)
+				//		{
+				//			//engine.physicsWorld.Step(physicsStep.count(), 8, 3);
+				//			physicsAccumulator -= physicsStep;
 
-							//std::cout << "Body pos " << b->GetPosition().x << ", " << b->GetPosition().y << "\n";
-						}
-						engine.scene->Update(deltaTime.count());
-					});
+				//			//std::cout << "Body pos " << b->GetPosition().x << ", " << b->GetPosition().y << "\n";
+				//		}
+				// 
+				//	});
 
+				DeluEngine::gHeart.Pulse();
 				engine.controller.SwapBuffers();
 
 				Render(engine);

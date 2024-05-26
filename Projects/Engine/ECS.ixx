@@ -17,37 +17,39 @@ import SDL2pp;
 
 namespace DeluEngine
 {
-	export class GameObject;
-	export class DebugRenderer;
-	export class Scene;
+	export Engine& GetEngine(const ECS::Scene& scene);
 
-	export class GameObject : public ECS::GameObject
-	{
-	public:
-		using ObjectBaseClasses = ECS::ObjectBaseClassesHelper<ECS::GameObject>;
-		//using ECS::GameObject::GameObject;
-		GameObject(const ECS::ObjectInitializer& initializer, const ECS::UserGameObjectInitializer& goInitializer) :
-			ECS::GameObject(initializer, goInitializer)
-		{
-		}
+	//export class GameObject;
+	//export class DebugRenderer;
+	//export class Scene;
 
-	public:
-		virtual void Update(float deltaTime) = 0;
-		virtual void DebugDraw(DebugRenderer& renderer) {}
+	//export class GameObject : public ECS::GameObject
+	//{
+	//public:
+	//	using ObjectBaseClasses = ECS::ObjectBaseClassesHelper<ECS::GameObject>;
+	//	//using ECS::GameObject::GameObject;
+	//	GameObject(const ECS::ObjectInitializer& initializer, const ECS::UserGameObjectInitializer& goInitializer) :
+	//		ECS::GameObject(initializer, goInitializer)
+	//	{
+	//	}
 
-	public:
-		Engine& GetEngine() const noexcept;
-		Scene& GetScene() const noexcept;
-	};
+	//public:
+	//	virtual void Update(float deltaTime) = 0;
+	//	virtual void DebugDraw(DebugRenderer& renderer) {}
 
-	export class SceneInit
-	{
+	//public:
+	//	Engine& GetEngine() const noexcept;
+	//	Scene& GetScene() const noexcept;
+	//};
 
-	public:
-		virtual void OnInit(Scene& scene) const {}
+	//export class SceneInit
+	//{
 
-		void operator()(Scene& scene) const { OnInit(scene); }
-	};
+	//public:
+	//	virtual void OnInit(Scene& scene) const {}
+
+	//	void operator()(Scene& scene) const { OnInit(scene); }
+	//};
 
 	export class SceneSystem : public ECS::SceneSystem
 	{
@@ -59,7 +61,10 @@ namespace DeluEngine
 		}
 
 	public:
-		Scene& GetScene() const noexcept;
+		Engine& GetEngine() const
+		{
+			return DeluEngine::GetEngine(GetScene());
+		}
 	};
 
 	export class SceneGUISystem : public SceneSystem
@@ -83,52 +88,15 @@ namespace DeluEngine
 		}
 	};
 
-	class Scene : public ECS::Scene
-	{
-	public:
-		template<std::invocable<ECS::Scene&> InitFunc>
-		Scene(gsl::not_null<Engine*> engine, InitFunc&& init) :
-			ECS::Scene(init, engine)
-		{
-		}
-
-		void Update(float deltaTime)
-		{
-			ForEachSceneSystem([deltaTime](auto& system)
-			{
-				system.Update(deltaTime);
-			});
-
-			ForEachGameObject([deltaTime](ECS::Object& gameObject)
-			{
-				if (auto* ptr = dynamic_cast<GameObject*>(&gameObject); ptr)
-					ptr->Update(deltaTime);
-			});
-
-			GetAllocator().ExecuteEvents();
-		}
-
-		void DebugDraw(DeluEngine::DebugRenderer& renderer)
-		{
-			ForEachGameObject([&](ECS::Object& gameObject)
-			{
-				if (auto* ptr = dynamic_cast<GameObject*>(&gameObject); ptr)
-					ptr->DebugDraw(renderer);
-			});
-		}
-
-		Engine& GetEngine() const;
-	};
+	//Scene& GameObject::GetScene() const noexcept
+	//{
+	//	return static_cast<Scene&>(ECS::GameObject::GetScene());
+	//}
 
 
 
-	Scene& GameObject::GetScene() const noexcept
-	{
-		return static_cast<Scene&>(ECS::GameObject::GetScene());
-	}
-
-	Scene& SceneSystem::GetScene() const noexcept
-	{
-		return static_cast<Scene&>(ECS::SceneSystem::GetScene());
-	}
+	//Scene& SceneSystem::GetScene() const noexcept
+	//{
+	//	return static_cast<Scene&>(ECS::SceneSystem::GetScene());
+	//}
 }

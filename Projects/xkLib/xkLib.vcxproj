@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AnyPtr.ixx" />
     <ClCompile Include="FunctionPointers.ixx" />
     <ClCompile Include="ScopeGuard.ixx" />
   </ItemGroup>

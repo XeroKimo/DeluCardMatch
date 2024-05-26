@@ -167,7 +167,7 @@ export struct PauseScreen
 	}
 };
 
-export struct CardGrid : public DeluEngine::SceneSystem
+export struct CardGrid : public DeluEngine::SceneSystem, public DeluEngine::PulseCallback
 {
 	std::vector<std::unique_ptr<Card>> cards;
 	DeluEngine::GUI::UniqueHandle<DeluEngine::GUI::UIElement> gridAligningParent;
@@ -185,10 +185,11 @@ export struct CardGrid : public DeluEngine::SceneSystem
 
 public:
 	CardGrid(const gsl::not_null<ECS::Scene*> scene, DeluEngine::GUI::GUIEngine& frame, xk::Math::Aliases::iVector2 gridSize, std::span<SDL2pp::shared_ptr<SDL2pp::Texture>> textures, SDL2pp::shared_ptr<SDL2pp::Texture> cardBack, SDL2pp::shared_ptr<SDL2pp::Texture> cardFront) :
-		SceneSystem{ scene }
+		SceneSystem{ scene },
+		PulseCallback{ "Game" }
 	{
 
-		engine = &static_cast<DeluEngine::Scene&>(GetScene()).GetEngine();
+		engine = &GetEngine();
 		engine->controllerContext.PushContext("Game");
 		engine->controllerContext.GetCurrentContext().FindAction("Pause").BindButton([this](bool) { OpenPauseMenu();  });
 
@@ -253,16 +254,18 @@ public:
 				cards[y * gridSize.X() + x]->SetLocalPosition(DeluEngine::GUI::ConvertPivotEquivalentRelativePosition({ 0, 0 }, { 0.5f, 0.5f }, DeluEngine::GUI::RelativePosition{ { static_cast<float>(x) / gridSize.X(), static_cast<float>(y) / gridSize.Y() } }, cardSize, gridAligningParent->GetFrameSizeAs<DeluEngine::GUI::AbsoluteSize>()));
 			}
 		}
+
 	}
 
 	~CardGrid()
 	{
-		DeluEngine::Engine& engine = static_cast<DeluEngine::Scene&>(GetScene()).GetEngine();
+		DeluEngine::Engine& engine = GetEngine();
 		engine.controllerContext.PopContext();
 	}
 
-	void Update(float deltaTime) override
+	void Update(std::chrono::nanoseconds dt) override
 	{
+		float deltaTime = std::chrono::duration<float>(dt).count();
 		if(pendingClosePauseScreen)
 		{
 			ClosePauseMenu();
@@ -326,7 +329,7 @@ public:
 	{
 		pauseScreen = std::make_unique<PauseScreen>(*engine, engine->guiEngine);
 
-		DeluEngine::Engine& engine = *GetScene().GetExternalSystemAs<gsl::not_null<DeluEngine::Engine*>>();
+		DeluEngine::Engine& engine = GetEngine();
 		engine.controllerContext.GetCurrentContext().FindAction("Resume").BindButton([this](bool) { ClosePauseMenu();  });
 
 		pauseScreen->resumeButton->onClicked = [this] { pendingClosePauseScreen = true; };
@@ -342,9 +345,9 @@ public:
 void CardMatchSceneLoader::operator()(ECS::Scene& s) const
 {
 	std::cout << "Entered card match scene\n";
-	DeluEngine::Scene& scene = static_cast<DeluEngine::Scene&>(s);
-	DeluEngine::Engine& engine = *s.GetExternalSystemAs<gsl::not_null<DeluEngine::Engine*>>();
-	DeluEngine::SceneGUISystem& gui = scene.CreateSystem<DeluEngine::SceneGUISystem>();
+
+	DeluEngine::Engine& engine = DeluEngine::GetEngine(s);
+	DeluEngine::SceneGUISystem& gui = s.GetSystem<DeluEngine::SceneGUISystem>();
 
 	std::array pngSurfaces
 	{
@@ -390,7 +393,7 @@ void CardMatchSceneLoader::operator()(ECS::Scene& s) const
 		SDL_FreeSurface(surface);
 	}
 
-	CardGrid& grid = scene.CreateSystem<CardGrid>(engine.guiEngine, cardCount, cardTextures, cardBackTexture, cardFrontTexture);
+	CardGrid& grid = s.CreateSystem<CardGrid>(engine.guiEngine, cardCount, cardTextures, cardBackTexture, cardFrontTexture);
 }
 
 export CardMatchSceneLoader CardMatchScene(xk::Math::Aliases::iVector2 cardCount)
@@ -403,10 +406,9 @@ export auto TitleScene()
 {
 	return [](ECS::Scene& s)
 	{
-		DeluEngine::Scene& scene = static_cast<DeluEngine::Scene&>(s);
-		DeluEngine::SceneGUISystem& gui = scene.CreateSystem<DeluEngine::SceneGUISystem>();
+		DeluEngine::SceneGUISystem& gui = s.GetSystem<DeluEngine::SceneGUISystem>();
 
-		DeluEngine::Engine& engine = static_cast<DeluEngine::Scene&>(s).GetEngine();
+		DeluEngine::Engine& engine = DeluEngine::GetEngine(s);
 		DeluEngine::GUI::GUIEngine& frame = engine.guiEngine;
 		SDL_Surface* quitButtonPNG = IMG_Load("Quit_Button.png");
 		SDL_Surface* playButtonPNG = IMG_Load("Play_Button.png");
@@ -419,7 +421,7 @@ export auto TitleScene()
 		quitButton->texture = engine.renderer.backend->CreateTexture(quitButtonPNG);
 		quitButton->SetPivot({ 0.5f, 0.0f });
 		quitButton->SetLocalPosition(DeluEngine::GUI::RelativePosition{ { 0.5f, 0.2f } });
-		quitButton->SetSizeRepresentation(DeluEngine::GUI::AbsoluteSize{ { quitButtonPNG->w, quitButtonPNG->h } });
+		quitButton->SetLocalSize(DeluEngine::GUI::AbsoluteSize{ { quitButtonPNG->w, quitButtonPNG->h } });
 		quitButton->ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::AspectRatioRelativeSize>();
 		quitButton->onClicked = [&engine]
 			{
@@ -435,7 +437,7 @@ export auto TitleScene()
 		playButton->texture = engine.renderer.backend->CreateTexture(playButtonPNG);
 		playButton->SetPivot({ 0.5f, 0.0f });
 		playButton->SetLocalPosition(DeluEngine::GUI::RelativePosition{ { 0.5f, 0.4f } });
-		playButton->SetSizeRepresentation(DeluEngine::GUI::AbsoluteSize{ { playButtonPNG->w, playButtonPNG->h } });
+		playButton->SetLocalSize(DeluEngine::GUI::AbsoluteSize{ { playButtonPNG->w, playButtonPNG->h } });
 		playButton->ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::AspectRatioRelativeSize>();
 		playButton->onClicked = [&engine]
 			{

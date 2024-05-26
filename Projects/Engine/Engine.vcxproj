@@ -30,6 +30,7 @@
     <ClCompile Include="ForwardDeclares.ixx" />
     <ClCompile Include="GUI.cpp" />
     <ClCompile Include="GUI.ixx" />
+    <ClCompile Include="Heart.ixx" />
     <ClCompile Include="Physics.cpp" />
     <ClCompile Include="Physics.ixx" />
     <ClCompile Include="Renderer.ixx" />
