@@ -1180,11 +1180,6 @@ namespace ECS
 			func(*m_scene);
 		}
 
-		//void Update(float deltaTime)
-		//{
-		//	m_scene->Update(deltaTime);
-		//}
-
 		xk::AnyRef GetExternalSystem() const
 		{
 			return m_externalSystem;

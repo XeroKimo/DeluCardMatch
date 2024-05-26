@@ -507,12 +507,12 @@ namespace DeluEngine::GUI
 				}, m_size, newSize);
 		}
 
-		void SetPositionRepresentation(PositionVariant val) noexcept
+		void SetLocalPositionAndRepresentation(PositionVariant val) noexcept
 		{
 			m_position = val;
 		}
 
-		void SetSizeRepresentation(SizeVariant val) noexcept
+		void SetLocalSizeAndRepresentation(SizeVariant val) noexcept
 		{
 			m_size = val;
 		}

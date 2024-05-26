@@ -135,6 +135,9 @@ namespace DeluEngine
 			m_heart->RegisterCallback(m_groupName, this);
 		}
 		PulseCallback(const PulseCallback&) = delete;
+
+		//On moves there is no need to remove the callback as it is assumed
+		//that other will be falling out of scope soon therefore destructor running and removing the callback
 		PulseCallback(PulseCallback&& other) noexcept :
 			m_heart{ other.m_heart },
 			m_groupName{ other.m_groupName }

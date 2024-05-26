@@ -18,8 +18,8 @@ using namespace xk::Math::Aliases;
 void SetAnchors(DeluEngine::GUI::UIElement& element, Vector2 minAnchor, Vector2 maxAnchor)
 {
 	const Vector2 size = maxAnchor - minAnchor;
-	element.SetSizeRepresentation(DeluEngine::GUI::RelativeSize{ size });
-	element.SetPositionRepresentation(DeluEngine::GUI::RelativePosition{ minAnchor + Vector2{ size.X() * element.GetPivot().X(), size.Y() * element.GetPivot().Y() } });
+	element.SetLocalSizeAndRepresentation(DeluEngine::GUI::RelativeSize{ size });
+	element.SetLocalPositionAndRepresentation(DeluEngine::GUI::RelativePosition{ minAnchor + Vector2{ size.X() * element.GetPivot().X(), size.Y() * element.GetPivot().Y() } });
 }
 
 SDL2pp::FRect GetRect(const DeluEngine::GUI::UIElement& element)
@@ -83,10 +83,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	};
 
 	DeluEngine::gHeart.RegisterGroup("Game", 0);
-	DeluEngine::gHeart.RegisterGroup("Game2", 2);
 	engine.sceneManager.commonScenePreload = [](ECS::Scene& scene)
 		{
-			DeluEngine::gHeart.ClearCallbacks("Game");
 			scene.CreateSystem<DeluEngine::SceneGUISystem>();
 		};
 	SDL_Init(SDL_INIT_AUDIO);

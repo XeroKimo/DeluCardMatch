@@ -421,7 +421,7 @@ export auto TitleScene()
 		quitButton->texture = engine.renderer.backend->CreateTexture(quitButtonPNG);
 		quitButton->SetPivot({ 0.5f, 0.0f });
 		quitButton->SetLocalPosition(DeluEngine::GUI::RelativePosition{ { 0.5f, 0.2f } });
-		quitButton->SetSizeRepresentation(DeluEngine::GUI::AbsoluteSize{ { quitButtonPNG->w, quitButtonPNG->h } });
+		quitButton->SetLocalSize(DeluEngine::GUI::AbsoluteSize{ { quitButtonPNG->w, quitButtonPNG->h } });
 		quitButton->ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::AspectRatioRelativeSize>();
 		quitButton->onClicked = [&engine]
 			{
@@ -437,7 +437,7 @@ export auto TitleScene()
 		playButton->texture = engine.renderer.backend->CreateTexture(playButtonPNG);
 		playButton->SetPivot({ 0.5f, 0.0f });
 		playButton->SetLocalPosition(DeluEngine::GUI::RelativePosition{ { 0.5f, 0.4f } });
-		playButton->SetSizeRepresentation(DeluEngine::GUI::AbsoluteSize{ { playButtonPNG->w, playButtonPNG->h } });
+		playButton->SetLocalSize(DeluEngine::GUI::AbsoluteSize{ { playButtonPNG->w, playButtonPNG->h } });
 		playButton->ConvertUnderlyingSizeRepresentation<DeluEngine::GUI::AspectRatioRelativeSize>();
 		playButton->onClicked = [&engine]
 			{
